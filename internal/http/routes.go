@@ -12,13 +12,15 @@ import (
 // Returns:
 //   - http.Handler: The HTTP router.
 func NewRouter() http.Handler {
-	mux := http.NewServeMux()
+	rootMux := http.NewServeMux()
+	apiMux := http.NewServeMux()
 
 	// API routes
-	mux.HandleFunc("/api/v1/analyze", AnalyzeHandler)
+	apiMux.HandleFunc("POST /api/v1/links/analyze", AnalyzeHandler)
+	rootMux.Handle("/api/", apiMux)
 
 	// Web routes
-	mux.Handle("/", webassets.NewFileHandler())
+	rootMux.Handle("/", webassets.NewFileHandler())
 
-	return mux
+	return rootMux
 }

@@ -6,11 +6,6 @@ import (
 )
 
 func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
-	if r.Method != stdhttp.MethodPost {
-		stdhttp.Error(w, "method not allowed", stdhttp.StatusMethodNotAllowed)
-		return
-	}
-
 	var req AnalyzeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.URL == "" {
 		stdhttp.Error(w, "invalid json body", stdhttp.StatusBadRequest)
