@@ -1,0 +1,18 @@
+.git
+.gitignore
+.DS_Store
+.cursor
+agent-transcripts
+mcps
+terminals
+
+# Go build/test artifacts
+bin
+dist
+*.out
+*.test
+coverage.out
+cover.out
+
+# Local editor/debug artifacts
+cmd/__debug_bin*

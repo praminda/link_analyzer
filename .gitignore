@@ -10,7 +10,6 @@ Thumbs.db
 # Binaries and build outputs
 bin/
 dist/
-build/
 __debug*
 *.exe
 *.exe~
