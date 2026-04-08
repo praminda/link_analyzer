@@ -1,17 +1,23 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	apphttp "github.com/praminda/link_analyzer/internal/http"
+	"github.com/praminda/link_analyzer/internal/logging"
 )
 
 func main() {
-	mux := apphttp.NewRouter()
+	logger := logging.New()
+	slog.SetDefault(logger)
+
+	mux := apphttp.WithRequestLogging(apphttp.NewRouter())
 	addr := ":8080"
-	log.Printf("Server started on %s", addr)
+	logger.Info("Server starting", "addr", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatal(err)
+		logger.Error("Server failed", "error", err)
+		os.Exit(1)
 	}
 }

@@ -2,15 +2,20 @@ package http
 
 import (
 	"encoding/json"
+	"log/slog"
 	stdhttp "net/http"
 )
 
 func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	logger := slog.With("request_id", r.Context().Value(requestIDContextKey).(string))
+
 	var req AnalyzeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.URL == "" {
-		stdhttp.Error(w, "invalid json body", stdhttp.StatusBadRequest)
+		logger.Warn("Invalid analyze request body", "error", err)
+		stdhttp.Error(w, "Invalid json body", stdhttp.StatusBadRequest)
 		return
 	}
+	logger.Info("Starting analysis", "url", req.URL)
 
 	resp := AnalyzeResponse{
 		HTMLVersion: "HTML5",
@@ -30,5 +35,7 @@ func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Error("Failed to encode analyze response", "error", err)
+	}
 }
