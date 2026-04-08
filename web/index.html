@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Link Analyzer</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <main class="container-sm py-4">
+      <h1>Link Analyzer</h1>
+      <form id="analyze-form" class="mb-4">
+        <label for="url-input" class="form-label">Enter a URL to analyze</label>
+        <div class="d-flex gap-2 align-items-start">
+          <input
+            class="form-control flex-grow-0"
+            style="width: 420px; max-width: 100%"
+            id="url-input"
+            name="url"
+            type="url"
+            placeholder="https://example.com"
+            required
+          />
+          <button type="submit" class="btn btn-primary">Analyze</button>
+        </div>
+      </form>
+
+      <section>
+        <h2>Result</h2>
+        <div id="status">No links yet.</div>
+        <table id="result-table" class="table table-bordered mt-3">
+          <colgroup>
+            <col style="width: 25%" />
+            <col style="width: 75%" />
+          </colgroup>
+          <tbody id="result-body">
+            <tr>
+              <th class="text-start">HTML version</th>
+              <td></td>
+            </tr>
+            <tr>
+              <th class="text-start">Page title</th>
+              <td></td>
+            </tr>
+            <tr>
+              <th class="text-start">Headings</th>
+              <td></td>
+            </tr>
+            <tr>
+              <th class="text-start">External Links</th>
+              <td></td>
+            </tr>
+            <tr>
+              <th class="text-start">Internal Links</th>
+              <td></td>
+            </tr>
+            <tr>
+              <th class="text-start">Inaccessible Links</th>
+              <td></td>
+            </tr>
+            <tr>
+              <th class="text-start">Is a login page</th>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
