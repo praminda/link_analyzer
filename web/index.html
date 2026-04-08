@@ -14,7 +14,7 @@
   <body>
     <main class="container-sm py-4">
       <h1>Link Analyzer</h1>
-      <form id="analyze-form" class="mb-4">
+      <form id="analyze-form" class="mb-5">
         <label for="url-input" class="form-label">Enter a URL to analyze</label>
         <div class="d-flex gap-2 align-items-start">
           <input
@@ -33,42 +33,47 @@
       <section>
         <h2>Result</h2>
         <div id="status">No links yet.</div>
-        <table id="result-table" class="table table-bordered mt-3">
-          <colgroup>
-            <col style="width: 25%" />
-            <col style="width: 75%" />
-          </colgroup>
-          <tbody id="result-body">
-            <tr>
-              <th class="text-start">HTML version</th>
-              <td></td>
-            </tr>
-            <tr>
-              <th class="text-start">Page title</th>
-              <td></td>
-            </tr>
-            <tr>
-              <th class="text-start">Headings</th>
-              <td></td>
-            </tr>
-            <tr>
-              <th class="text-start">External Links</th>
-              <td></td>
-            </tr>
-            <tr>
-              <th class="text-start">Internal Links</th>
-              <td></td>
-            </tr>
-            <tr>
-              <th class="text-start">Inaccessible Links</th>
-              <td></td>
-            </tr>
-            <tr>
-              <th class="text-start">Is a login page</th>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
+        <div id="report-section" class="mt-3 d-none">
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h3 class="h5 mb-3">Overview</h3>
+                  <dl class="row mb-0">
+                    <dt class="col-4">HTML version</dt>
+                    <dd class="col-8" id="report-html-version">-</dd>
+                    <dt class="col-4">Page title</dt>
+                    <dd class="col-8" id="report-page-title">-</dd>
+                    <dt class="col-4">Is a login page</dt>
+                    <dd class="col-8" id="report-is-login-page">-</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h3 class="h5 mb-3">Link Metrics</h3>
+                  <dl class="row mb-0">
+                    <dt class="col-4">External links</dt>
+                    <dd class="col-8" id="report-external-links">-</dd>
+                    <dt class="col-4">Internal links</dt>
+                    <dd class="col-8" id="report-internal-links">-</dd>
+                    <dt class="col-4">Inaccessible links</dt>
+                    <dd class="col-8" id="report-inaccessible-links">-</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <h3 class="h5 mb-3">Heading Metrics</h3>
+              <ul id="heading-counts-list" class="list-group list-group-flush"></ul>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
     <script src="./app.js"></script>
