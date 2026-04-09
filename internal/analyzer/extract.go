@@ -26,6 +26,7 @@ type extractor struct {
 	htmlVersion string
 	title       string
 	headings    HeadingCounts
+	isLoginPage bool
 
 	links []string
 	seen  map[string]struct{}
@@ -69,6 +70,7 @@ func (c *extractor) consumeNode(n *html.Node) {
 	c.captureTitle(name, n)
 	c.captureHeading(name)
 	c.captureLink(name, n)
+	c.captureLoginForm(name, n)
 }
 
 func (c *extractor) captureDoctype(n *html.Node) {
@@ -130,7 +132,68 @@ func (c *extractor) toResponse() AnalyzeResponse {
 		HTMLVersion:   c.htmlVersion,
 		PageTitle:     c.title,
 		HeadingCounts: c.headings,
+		IsLoginPage:   c.isLoginPage,
 	}
+}
+
+func (c *extractor) captureLoginForm(name string, n *html.Node) {
+	if c.isLoginPage || name != "form" {
+		return
+	}
+	if formHasCredentials(n) {
+		c.isLoginPage = true
+	}
+}
+
+// formHasCredentials checks if a form contains a username or password input.
+// if one of those are available, we consider the form a login form.
+func formHasCredentials(formNode *html.Node) bool {
+	queue := []*html.Node{formNode}
+	for len(queue) > 0 {
+		node := queue[0]
+		queue = queue[1:]
+
+		if node.Type == html.ElementNode && strings.EqualFold(node.Data, "input") {
+			if isPasswordInput(node) || isUsernameLikeInput(node) {
+				return true
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			queue = append(queue, child)
+		}
+	}
+	return false
+}
+
+// isPasswordInput checks if an input node is a password input.
+func isPasswordInput(n *html.Node) bool {
+	return strings.EqualFold(strings.TrimSpace(getAttr(n, "type")), "password")
+}
+
+// isUsernameLikeInput checks if an input node is a username input.
+func isUsernameLikeInput(n *html.Node) bool {
+	inputType := strings.ToLower(strings.TrimSpace(getAttr(n, "type")))
+	if inputType == "" {
+		inputType = "text"
+	}
+	if inputType != "text" && inputType != "email" {
+		return false
+	}
+
+	if strings.EqualFold(strings.TrimSpace(getAttr(n, "autocomplete")), "username") {
+		return true
+	}
+
+	candidates := []string{
+		strings.ToLower(getAttr(n, "name")),
+		strings.ToLower(getAttr(n, "id")),
+	}
+	for _, v := range candidates {
+		if strings.Contains(v, "user") || strings.Contains(v, "email") || strings.Contains(v, "login") {
+			return true
+		}
+	}
+	return false
 }
 
 func resolveHTTPLink(baseURL *url.URL, href string) string {

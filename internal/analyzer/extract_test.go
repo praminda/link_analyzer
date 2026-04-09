@@ -61,3 +61,47 @@ func TestDetectHTMLVersion_NoDoctype(t *testing.T) {
 		t.Fatalf("HTMLVersion = %q", out.HTMLVersion)
 	}
 }
+
+func TestExtractStructured_LoginDetection_AnyCredentialField(t *testing.T) {
+	base, _ := url.Parse("https://example.com")
+
+	loginHTML := `<html><body>
+<form>
+  <input type="text" name="username" />
+  <input type="password" name="password" />
+</form>
+</body></html>`
+	out, _, err := extractStructured([]byte(loginHTML), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.IsLoginPage {
+		t.Fatal("expected IsLoginPage=true")
+	}
+
+	passwordOnlyHTML := `<html><body>
+<form>
+  <input type="password" name="password" />
+</form>
+</body></html>`
+	out, _, err = extractStructured([]byte(passwordOnlyHTML), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.IsLoginPage {
+		t.Fatal("expected IsLoginPage=true for password-only form")
+	}
+
+	noCredentialsHTML := `<html><body>
+<form>
+  <input type="hidden" name="csrf" />
+</form>
+</body></html>`
+	out, _, err = extractStructured([]byte(noCredentialsHTML), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.IsLoginPage {
+		t.Fatal("expected IsLoginPage=false without credential fields")
+	}
+}

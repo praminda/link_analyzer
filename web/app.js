@@ -67,7 +67,7 @@ form.addEventListener("submit", async (event) => {
 
     setText("report-html-version", String(data.htmlVersion ?? "-"));
     setText("report-page-title", String(data.pageTitle ?? "-"));
-    setText("report-is-login-page", String(Boolean(data.isLoginPage)));
+    setText("report-is-login-page", String(Boolean(data.containsLogin)));
     setText("report-external-links", String(data.externalLinks ?? 0));
     setText("report-internal-links", String(data.internalLinks ?? 0));
     setText("report-inaccessible-links", String(data.inaccessibleLinks ?? 0));

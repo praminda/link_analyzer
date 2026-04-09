@@ -23,8 +23,20 @@ Local dev: `http://localhost:8080` (same origin for UI and API).
 ```bash
 git clone https://github.com/praminda/link_analyzer.git
 cd link_analyzer
+```
+
+Start server locally
+
+```bash
 go mod download
 go run ./cmd
+```
+
+or using docker
+
+```bash
+docker build -f build/package/Dockerfile -t link-analyzer:latest .
+docker run --rm -p 8080:8080 link-analyzer:latest
 ```
 
 Then open `http://localhost:8080`. The process listens on port **8080**.
