@@ -32,10 +32,40 @@ func TestAnalyzeJob_Process_successWithMocks(t *testing.T) {
 	}
 	client := &http.Client{
 		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch r.URL.String() {
+			case "https://example.com/page":
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"text/html"}},
+					Body: io.NopCloser(strings.NewReader(
+						"<!DOCTYPE html><html><head><title>ok</title></head><body>" +
+							"<h1>x</h1>" +
+							"<a href=\"/ok\">ok</a>" +
+							"<a href=\"https://other.com/bad\">bad</a>" +
+							"</body></html>",
+					)),
+				}, nil
+			case "https://example.com/ok":
+				if r.Method == http.MethodHead {
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     http.Header{"Content-Type": []string{"text/html"}},
+						Body:       io.NopCloser(strings.NewReader("")),
+					}, nil
+				}
+			case "https://other.com/bad":
+				if r.Method == http.MethodHead {
+					return &http.Response{
+						StatusCode: http.StatusNotFound,
+						Header:     http.Header{"Content-Type": []string{"text/html"}},
+						Body:       io.NopCloser(strings.NewReader("")),
+					}, nil
+				}
+			}
 			return &http.Response{
-				StatusCode: http.StatusOK,
+				StatusCode: http.StatusInternalServerError,
 				Header:     http.Header{"Content-Type": []string{"text/html"}},
-				Body:       io.NopCloser(strings.NewReader("<!DOCTYPE html><html><head><title>ok</title></head><body><h1>x</h1><a href=\"/a\">a</a></body></html>")),
+				Body:       io.NopCloser(strings.NewReader("unexpected")),
 			}, nil
 		}),
 	}
@@ -56,7 +86,16 @@ func TestAnalyzeJob_Process_successWithMocks(t *testing.T) {
 	if got := job.Response().HeadingCounts.Heading1; got != 1 {
 		t.Fatalf("Response.Heading1 = %d", got)
 	}
-	if got := len(job.ResolvedLinks()); got != 1 {
+	if got := len(job.ResolvedLinks()); got != 2 {
 		t.Fatalf("ResolvedLinks len = %d", got)
+	}
+	if got := job.Response().InternalLinks; got != 1 {
+		t.Fatalf("Response.InternalLinks = %d", got)
+	}
+	if got := job.Response().ExternalLinks; got != 1 {
+		t.Fatalf("Response.ExternalLinks = %d", got)
+	}
+	if got := job.Response().InaccessibleLinks; got != 1 {
+		t.Fatalf("Response.InaccessibleLinks = %d", got)
 	}
 }

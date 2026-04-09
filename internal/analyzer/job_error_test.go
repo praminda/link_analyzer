@@ -54,7 +54,7 @@ func TestAnalyzeJob_Process_UpstreamStatusDetails(t *testing.T) {
 	if !errors.As(err, &ae) {
 		t.Fatalf("expected AnalyzeError, got %T", err)
 	}
-	if ae.HTTPStatus != http.StatusBadGateway {
+	if ae.HTTPStatus != http.StatusBadRequest {
 		t.Fatalf("status = %d", ae.HTTPStatus)
 	}
 	if ae.Code != "fetch_http_404" {

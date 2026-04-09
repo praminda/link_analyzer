@@ -85,6 +85,13 @@ func (j *AnalyzeJob) Process(ctx context.Context) error {
 			Message:    "failed to extract HTML fields",
 		}
 	}
+	metrics, err := generateLinkMetrics(ctx, client, lookup, u, links)
+	if err != nil {
+		return mapAnalyzeError("link_metrics_failed", err)
+	}
+	out.InternalLinks = metrics.internal
+	out.ExternalLinks = metrics.external
+	out.InaccessibleLinks = metrics.inaccessible
 	j.response = out
 	j.resolvedLinks = links
 	return nil
