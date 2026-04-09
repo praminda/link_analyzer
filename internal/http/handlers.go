@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	stdhttp "net/http"
+
+	"github.com/praminda/link_analyzer/internal/analyzer"
 )
 
 func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
@@ -17,21 +19,28 @@ func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	}
 	logger.Info("Starting analysis", "url", req.URL)
 
+	job := &analyzer.AnalyzeJob{URL: req.URL}
+	if err := job.Process(r.Context()); err != nil {
+		logger.Error("Analysis failed", "url", req.URL, "error", err)
+		stdhttp.Error(w, "Failed to analyze URL", stdhttp.StatusBadRequest)
+		return
+	}
+	out := job.Response()
 	resp := AnalyzeResponse{
-		HTMLVersion: "HTML5",
-		PageTitle:   "Dummy Page Title",
+		HTMLVersion: out.HTMLVersion,
+		PageTitle:   out.PageTitle,
 		HeadingCounts: HeadingCounts{
-			Heading1: 4,
-			Heading2: 2,
-			Heading3: 0,
-			Heading4: 0,
-			Heading5: 0,
-			Heading6: 0,
+			Heading1: out.HeadingCounts.Heading1,
+			Heading2: out.HeadingCounts.Heading2,
+			Heading3: out.HeadingCounts.Heading3,
+			Heading4: out.HeadingCounts.Heading4,
+			Heading5: out.HeadingCounts.Heading5,
+			Heading6: out.HeadingCounts.Heading6,
 		},
-		ExternalLinks:     12,
-		InternalLinks:     8,
-		InaccessibleLinks: 1,
-		IsLoginPage:       false,
+		ExternalLinks:     out.ExternalLinks,
+		InternalLinks:     out.InternalLinks,
+		InaccessibleLinks: out.InaccessibleLinks,
+		IsLoginPage:       out.IsLoginPage,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
