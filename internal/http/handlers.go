@@ -2,11 +2,21 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	stdhttp "net/http"
 
 	"github.com/praminda/link_analyzer/internal/analyzer"
 )
+
+type errorEnvelope struct {
+	Error errorPayload `json:"error"`
+}
+
+type errorPayload struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
 
 func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	logger := slog.With("request_id", r.Context().Value(requestIDContextKey).(string))
@@ -22,7 +32,7 @@ func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	job := &analyzer.AnalyzeJob{URL: req.URL}
 	if err := job.Process(r.Context()); err != nil {
 		logger.Error("Analysis failed", "url", req.URL, "error", err)
-		stdhttp.Error(w, "Failed to analyze URL", stdhttp.StatusBadRequest)
+		writeAnalyzeError(w, err)
 		return
 	}
 	out := job.Response()
@@ -47,4 +57,22 @@ func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		logger.Error("Failed to encode analyze response", "error", err)
 	}
+}
+
+func writeAnalyzeError(w stdhttp.ResponseWriter, err error) {
+	status := stdhttp.StatusInternalServerError
+	payload := errorPayload{
+		Code:    "analysis_failed",
+		Message: "failed to analyze URL",
+	}
+
+	if analyzeErr, ok := errors.AsType[*analyzer.AnalyzeError](err); ok {
+		status = analyzeErr.HTTPStatus
+		payload.Code = analyzeErr.Code
+		payload.Message = analyzeErr.Message
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(errorEnvelope{Error: payload})
 }

@@ -13,7 +13,7 @@ import (
 const (
 	defaultFetchTimeout = 30 * time.Second
 	// maxRedirectFollows is how many Location hops we allow after the initial GET.
-	maxRedirectFollows  = 2
+	maxRedirectFollows  = 5
 	defaultMaxBodyBytes = 2 << 20 // 2 MiB
 	defaultUserAgent    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:145.0) Gecko/20090101 Firefox/145.0"
 )
@@ -53,7 +53,7 @@ func fetchHTML(ctx context.Context, client *http.Client, u *url.URL, maxBody int
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("%w: status %d", ErrFetchStatus, resp.StatusCode)
+		return nil, fmt.Errorf("%w: %w", ErrFetchStatus, &UpstreamHTTPStatusError{StatusCode: resp.StatusCode})
 	}
 	if !isHTMLContentType(resp.Header.Get("Content-Type")) {
 		return nil, ErrNotHTML

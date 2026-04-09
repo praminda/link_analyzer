@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 )
@@ -52,7 +53,11 @@ func (j *AnalyzeJob) ResolvedLinks() []string {
 
 func (j *AnalyzeJob) Process(ctx context.Context) error {
 	if j == nil {
-		return errors.New("Analyzer: nil AnalyzeJob")
+		return &AnalyzeError{
+			HTTPStatus: http.StatusInternalServerError,
+			Code:       "internal_job_error",
+			Message:    "analyzer job is nil",
+		}
 	}
 	lookup := j.lookup
 	if lookup == nil {
@@ -60,7 +65,7 @@ func (j *AnalyzeJob) Process(ctx context.Context) error {
 	}
 	u, err := parseAndValidateURL(ctx, j.URL, lookup)
 	if err != nil {
-		return err
+		return mapAnalyzeError("url_validation_failed", err)
 	}
 	client := j.httpClient
 	if client == nil {
@@ -68,15 +73,71 @@ func (j *AnalyzeJob) Process(ctx context.Context) error {
 	}
 	body, err := fetchHTML(ctx, client, u, defaultMaxBodyBytes)
 	if err != nil {
-		return err
+		return mapAnalyzeError("fetch_failed", err)
 	}
 	j.rawHTML = body
 
 	out, links, err := extractStructured(body, u)
 	if err != nil {
-		return err
+		return &AnalyzeError{
+			HTTPStatus: http.StatusUnprocessableEntity,
+			Code:       "html_extraction_failed",
+			Message:    "failed to extract HTML fields",
+		}
 	}
 	j.response = out
 	j.resolvedLinks = links
 	return nil
+}
+
+func mapAnalyzeError(code string, err error) error {
+	if err == nil {
+		return nil
+	}
+	switch {
+	case errors.Is(err, ErrInvalidURL), errors.Is(err, ErrDisallowedHost):
+		return &AnalyzeError{
+			HTTPStatus: http.StatusBadRequest,
+			Code:       code,
+			Message:    err.Error(),
+			Cause:      err,
+		}
+	case errors.Is(err, ErrFetchStatus):
+		upstream := &UpstreamHTTPStatusError{}
+		statusCode := 0
+		if errors.As(err, &upstream) {
+			statusCode = upstream.StatusCode
+		}
+		fetchCode := code
+		if statusCode > 0 {
+			fetchCode = fmt.Sprintf("fetch_http_%d", statusCode)
+		}
+		return &AnalyzeError{
+			HTTPStatus: http.StatusBadRequest,
+			Code:       fetchCode,
+			Message:    err.Error(),
+			Cause:      err,
+		}
+	case errors.Is(err, ErrNotHTML):
+		return &AnalyzeError{
+			HTTPStatus: http.StatusUnprocessableEntity,
+			Code:       code,
+			Message:    "target response is not HTML",
+			Cause:      err,
+		}
+	case errors.Is(err, ErrBodyTooLarge):
+		return &AnalyzeError{
+			HTTPStatus: http.StatusRequestEntityTooLarge,
+			Code:       code,
+			Message:    "target response body is too large",
+			Cause:      err,
+		}
+	default:
+		return &AnalyzeError{
+			HTTPStatus: http.StatusBadGateway,
+			Code:       code,
+			Message:    "request to target URL failed",
+			Cause:      err,
+		}
+	}
 }

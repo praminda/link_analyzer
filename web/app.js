@@ -59,7 +59,8 @@ form.addEventListener("submit", async (event) => {
     });
 
     if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
+      let body = await response.json();
+      throw new Error(`Request failed: ${response.status}, ${body.error.message}`);
     }
 
     const data = await response.json();
