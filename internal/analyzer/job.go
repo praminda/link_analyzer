@@ -20,6 +20,10 @@ type AnalyzeJob struct {
 
 	// rawHTML holds the fetched document after a successful Process.
 	rawHTML []byte
+	// response is progressively filled as analysis stages complete.
+	response AnalyzeResponse
+	// resolvedLinks holds absolute HTTP(S) links extracted from the document.
+	resolvedLinks []string
 }
 
 // RawHTML returns the fetched document body after Process succeeds.
@@ -28,6 +32,22 @@ func (j *AnalyzeJob) RawHTML() []byte {
 		return nil
 	}
 	return j.rawHTML
+}
+
+// Response returns the structured analysis accumulated by Process.
+func (j *AnalyzeJob) Response() AnalyzeResponse {
+	if j == nil {
+		return AnalyzeResponse{}
+	}
+	return j.response
+}
+
+// ResolvedLinks returns absolute HTTP(S) links extracted during Process.
+func (j *AnalyzeJob) ResolvedLinks() []string {
+	if j == nil {
+		return nil
+	}
+	return j.resolvedLinks
 }
 
 func (j *AnalyzeJob) Process(ctx context.Context) error {
@@ -51,5 +71,12 @@ func (j *AnalyzeJob) Process(ctx context.Context) error {
 		return err
 	}
 	j.rawHTML = body
+
+	out, links, err := extractStructured(body, u)
+	if err != nil {
+		return err
+	}
+	j.response = out
+	j.resolvedLinks = links
 	return nil
 }

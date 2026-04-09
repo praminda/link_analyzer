@@ -17,6 +17,9 @@ type AnalyzeResponse struct {
 }
 
 // HeadingCounts holds per-level heading counts from a page.
+// Defined as a separate type to make sure analyzer output and
+// HTTP are independent of each other. So that we can change the
+// analyzer output without affecting the HTTP response.
 type HeadingCounts struct {
 	Heading1 int `json:"heading1"`
 	Heading2 int `json:"heading2"`

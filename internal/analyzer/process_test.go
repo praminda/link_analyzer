@@ -35,7 +35,7 @@ func TestAnalyzeJob_Process_successWithMocks(t *testing.T) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Header:     http.Header{"Content-Type": []string{"text/html"}},
-				Body:       io.NopCloser(strings.NewReader("<html>ok</html>")),
+				Body:       io.NopCloser(strings.NewReader("<!DOCTYPE html><html><head><title>ok</title></head><body><h1>x</h1><a href=\"/a\">a</a></body></html>")),
 			}, nil
 		}),
 	}
@@ -47,7 +47,16 @@ func TestAnalyzeJob_Process_successWithMocks(t *testing.T) {
 	if err := job.Process(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if got := string(job.RawHTML()); got != "<html>ok</html>" {
-		t.Fatalf("RawHTML = %q", got)
+	if got := string(job.RawHTML()); got == "" {
+		t.Fatal("RawHTML should not be empty")
+	}
+	if got := job.Response().PageTitle; got != "ok" {
+		t.Fatalf("Response.PageTitle = %q", got)
+	}
+	if got := job.Response().HeadingCounts.Heading1; got != 1 {
+		t.Fatalf("Response.Heading1 = %d", got)
+	}
+	if got := len(job.ResolvedLinks()); got != 1 {
+		t.Fatalf("ResolvedLinks len = %d", got)
 	}
 }

@@ -3,3 +3,5 @@ module github.com/praminda/link_analyzer
 go 1.26.2
 
 require github.com/google/uuid v1.6.0
+
+require golang.org/x/net v0.52.0
