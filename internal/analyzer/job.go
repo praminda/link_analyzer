@@ -46,5 +46,10 @@ func (j *AnalyzeJob) Process(ctx context.Context) error {
 	if client == nil {
 		client = newFetchHTTPClient(lookup)
 	}
+	body, err := fetchHTML(ctx, client, u, defaultMaxBodyBytes)
+	if err != nil {
+		return err
+	}
+	j.rawHTML = body
 	return nil
 }

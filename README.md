@@ -122,3 +122,4 @@ OpenAPI are not published yet
 - Metrics (e.g. Prometheus)
 - Heavier database and/or external queue when SQLite and in-process workers stop being enough
 - Frontend is embedded into the service in this implementation. We need to separate it out to a different delivery artifact for production. Currently implemented this way for simplicity.
+- Make fetch client properties configurable. Env vars and a separate config file for the service.
