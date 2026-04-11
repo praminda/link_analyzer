@@ -41,7 +41,7 @@ func newExtractor(baseURL *url.URL) *extractor {
 }
 
 // walk traverses DOM iteratively to avoid recursion depth risks.
-func (c *extractor) walk(root *html.Node) {
+func (ext *extractor) walk(root *html.Node) {
 	if root == nil {
 		return
 	}
@@ -50,98 +50,98 @@ func (c *extractor) walk(root *html.Node) {
 		node := queue[0]
 		queue = queue[1:]
 
-		c.consumeNode(node)
+		ext.consumeNode(node)
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
 			queue = append(queue, child)
 		}
 	}
 }
 
-func (c *extractor) consumeNode(n *html.Node) {
-	if n.Type == html.DoctypeNode && c.htmlVersion == "Unknown" {
-		c.captureDoctype(n)
+func (ext *extractor) consumeNode(node *html.Node) {
+	if node.Type == html.DoctypeNode && ext.htmlVersion == "Unknown" {
+		ext.captureDoctype(node)
 		return
 	}
-	if n.Type != html.ElementNode {
+	if node.Type != html.ElementNode {
 		return
 	}
 
-	name := strings.ToLower(n.Data)
-	c.captureTitle(name, n)
-	c.captureHeading(name)
-	c.captureLink(name, n)
-	c.captureLoginForm(name, n)
+	name := strings.ToLower(node.Data)
+	ext.captureTitle(name, node)
+	ext.captureHeading(name)
+	ext.captureLink(name, node)
+	ext.captureLoginForm(name, node)
 }
 
-func (c *extractor) captureDoctype(n *html.Node) {
-	data := strings.TrimSpace(n.Data)
+func (ext *extractor) captureDoctype(node *html.Node) {
+	data := strings.TrimSpace(node.Data)
 	if strings.EqualFold(data, "html") {
-		c.htmlVersion = "HTML5"
+		ext.htmlVersion = "HTML5"
 		return
 	}
 	if data != "" {
-		c.htmlVersion = data
+		ext.htmlVersion = data
 	}
 }
 
-func (c *extractor) captureTitle(name string, n *html.Node) {
-	if name != "title" || c.title != "" {
+func (ext *extractor) captureTitle(name string, node *html.Node) {
+	if name != "title" || ext.title != "" {
 		return
 	}
-	c.title = strings.TrimSpace(textContentRecursive(n))
+	ext.title = strings.TrimSpace(textContentRecursive(node))
 }
 
-func (c *extractor) captureHeading(name string) {
+func (ext *extractor) captureHeading(name string) {
 	switch name {
 	case "h1":
-		c.headings.Heading1++
+		ext.headings.Heading1++
 	case "h2":
-		c.headings.Heading2++
+		ext.headings.Heading2++
 	case "h3":
-		c.headings.Heading3++
+		ext.headings.Heading3++
 	case "h4":
-		c.headings.Heading4++
+		ext.headings.Heading4++
 	case "h5":
-		c.headings.Heading5++
+		ext.headings.Heading5++
 	case "h6":
-		c.headings.Heading6++
+		ext.headings.Heading6++
 	}
 }
 
-func (c *extractor) captureLink(name string, n *html.Node) {
-	if name != "a" || c.baseURL == nil {
+func (ext *extractor) captureLink(name string, node *html.Node) {
+	if name != "a" || ext.baseURL == nil {
 		return
 	}
-	href := getAttr(n, "href")
+	href := getAttr(node, "href")
 	if href == "" {
 		return
 	}
-	abs := resolveHTTPLink(c.baseURL, href)
+	abs := resolveHTTPLink(ext.baseURL, href)
 	if abs == "" {
 		return
 	}
-	if _, ok := c.seen[abs]; ok {
+	if _, ok := ext.seen[abs]; ok {
 		return
 	}
-	c.seen[abs] = struct{}{}
-	c.links = append(c.links, abs)
+	ext.seen[abs] = struct{}{}
+	ext.links = append(ext.links, abs)
 }
 
-func (c *extractor) toResponse() AnalyzeResponse {
+func (ext *extractor) toResponse() AnalyzeResponse {
 	return AnalyzeResponse{
-		HTMLVersion:   c.htmlVersion,
-		PageTitle:     c.title,
-		HeadingCounts: c.headings,
-		IsLoginPage:   c.isLoginPage,
+		HTMLVersion:   ext.htmlVersion,
+		PageTitle:     ext.title,
+		HeadingCounts: ext.headings,
+		IsLoginPage:   ext.isLoginPage,
 	}
 }
 
-func (c *extractor) captureLoginForm(name string, n *html.Node) {
-	if c.isLoginPage || name != "form" {
+func (ext *extractor) captureLoginForm(name string, n *html.Node) {
+	if ext.isLoginPage || name != "form" {
 		return
 	}
 	if formHasCredentials(n) {
-		c.isLoginPage = true
+		ext.isLoginPage = true
 	}
 }
 

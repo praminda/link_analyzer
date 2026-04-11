@@ -18,26 +18,26 @@ type errorPayload struct {
 	Message string `json:"message"`
 }
 
-func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
-	logger := slog.With("request_id", r.Context().Value(requestIDContextKey).(string))
+func AnalyzeHandler(httpRes stdhttp.ResponseWriter, httpReq *stdhttp.Request) {
+	logger := slog.With("request_id", httpReq.Context().Value(requestIDContextKey).(string))
 
 	var req AnalyzeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(httpReq.Body).Decode(&req); err != nil {
 		logger.Warn("Invalid analyze request body", "error", err)
-		writeAPIError(w, stdhttp.StatusBadRequest, "invalid_json_body", "request body must be valid JSON")
+		writeAPIError(httpRes, stdhttp.StatusBadRequest, "invalid_json_body", "request body must be valid JSON")
 		return
 	}
 	if req.URL == "" {
 		logger.Warn("Invalid analyze request body", "error", "empty url")
-		writeAPIError(w, stdhttp.StatusBadRequest, "url_required", "url is required")
+		writeAPIError(httpRes, stdhttp.StatusBadRequest, "url_required", "url is required")
 		return
 	}
 	logger.Info("Starting analysis", "url", req.URL)
 
 	job := &analyzer.AnalyzeJob{URL: req.URL}
-	if err := job.Process(r.Context()); err != nil {
+	if err := job.Process(httpReq.Context()); err != nil {
 		logger.Error("Analysis failed", "url", req.URL, "error", err)
-		writeAnalyzeError(w, err)
+		writeAnalyzeError(httpRes, err)
 		return
 	}
 	out := job.Response()
@@ -58,19 +58,19 @@ func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		IsLoginPage:       out.IsLoginPage,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	httpRes.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(httpRes).Encode(resp); err != nil {
 		logger.Error("Failed to encode analyze response", "error", err)
 	}
 }
 
-func writeAPIError(w stdhttp.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(errorEnvelope{Error: errorPayload{Code: code, Message: message}})
+func writeAPIError(httpRes stdhttp.ResponseWriter, status int, code, message string) {
+	httpRes.Header().Set("Content-Type", "application/json")
+	httpRes.WriteHeader(status)
+	_ = json.NewEncoder(httpRes).Encode(errorEnvelope{Error: errorPayload{Code: code, Message: message}})
 }
 
-func writeAnalyzeError(w stdhttp.ResponseWriter, err error) {
+func writeAnalyzeError(httpRes stdhttp.ResponseWriter, err error) {
 	status := stdhttp.StatusInternalServerError
 	code := "analysis_failed"
 	message := "failed to analyze URL"
@@ -81,5 +81,5 @@ func writeAnalyzeError(w stdhttp.ResponseWriter, err error) {
 		message = analyzeErr.Message
 	}
 
-	writeAPIError(w, status, code, message)
+	writeAPIError(httpRes, status, code, message)
 }

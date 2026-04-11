@@ -28,56 +28,56 @@ type AnalyzeJob struct {
 }
 
 // RawHTML returns the fetched document body after Process succeeds.
-func (j *AnalyzeJob) RawHTML() []byte {
-	if j == nil {
+func (job *AnalyzeJob) RawHTML() []byte {
+	if job == nil {
 		return nil
 	}
-	return j.rawHTML
+	return job.rawHTML
 }
 
 // Response returns the structured analysis accumulated by Process.
-func (j *AnalyzeJob) Response() AnalyzeResponse {
-	if j == nil {
+func (job *AnalyzeJob) Response() AnalyzeResponse {
+	if job == nil {
 		return AnalyzeResponse{}
 	}
-	return j.response
+	return job.response
 }
 
 // ResolvedLinks returns absolute HTTP(S) links extracted during Process.
-func (j *AnalyzeJob) ResolvedLinks() []string {
-	if j == nil {
+func (job *AnalyzeJob) ResolvedLinks() []string {
+	if job == nil {
 		return nil
 	}
-	return j.resolvedLinks
+	return job.resolvedLinks
 }
 
-func (j *AnalyzeJob) Process(ctx context.Context) error {
-	if j == nil {
+func (job *AnalyzeJob) Process(ctx context.Context) error {
+	if job == nil {
 		return &AnalyzeError{
 			HTTPStatus: http.StatusInternalServerError,
 			Code:       "internal_job_error",
 			Message:    "analyzer job is nil",
 		}
 	}
-	lookup := j.lookup
+	lookup := job.lookup
 	if lookup == nil {
 		lookup = net.DefaultResolver.LookupIPAddr
 	}
-	u, err := parseAndValidateURL(ctx, j.URL, lookup)
+	url, err := parseAndValidateURL(ctx, job.URL, lookup)
 	if err != nil {
 		return mapAnalyzeError("url_validation_failed", err)
 	}
-	client := j.httpClient
+	client := job.httpClient
 	if client == nil {
 		client = newFetchHTTPClient(lookup)
 	}
-	body, err := fetchHTML(ctx, client, u, defaultMaxBodyBytes)
+	body, err := fetchHTML(ctx, client, url, defaultMaxBodyBytes)
 	if err != nil {
 		return mapAnalyzeError("fetch_failed", err)
 	}
-	j.rawHTML = body
+	job.rawHTML = body
 
-	out, links, err := extractStructured(body, u)
+	out, links, err := extractStructured(body, url)
 	if err != nil {
 		return &AnalyzeError{
 			HTTPStatus: http.StatusUnprocessableEntity,
@@ -85,15 +85,15 @@ func (j *AnalyzeJob) Process(ctx context.Context) error {
 			Message:    "failed to extract HTML fields",
 		}
 	}
-	metrics, err := generateLinkMetrics(ctx, client, lookup, u, links)
+	metrics, err := generateLinkMetrics(ctx, client, lookup, url, links)
 	if err != nil {
 		return mapAnalyzeError("link_metrics_failed", err)
 	}
 	out.InternalLinks = metrics.internal
 	out.ExternalLinks = metrics.external
 	out.InaccessibleLinks = metrics.inaccessible
-	j.response = out
-	j.resolvedLinks = links
+	job.response = out
+	job.resolvedLinks = links
 	return nil
 }
 
