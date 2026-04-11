@@ -60,7 +60,7 @@ form.addEventListener("submit", async (event) => {
 
     if (!response.ok) {
       let body = await response.json();
-      throw new Error(`Request failed: ${response.status}, ${body.error.message}`);
+      throw new Error(`Request failed: ${body.error.message}`);
     }
 
     const data = await response.json();
@@ -76,6 +76,6 @@ form.addEventListener("submit", async (event) => {
     reportSection.classList.remove("d-none");
     statusEl.textContent = "Analysis complete.";
   } catch (error) {
-    statusEl.textContent = `Failed to analyze URL: ${error.message}`;
+    statusEl.textContent = error.message;
   }
 });
