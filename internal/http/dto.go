@@ -28,3 +28,21 @@ type HeadingCounts struct {
 	Heading5 int `json:"heading5"`
 	Heading6 int `json:"heading6"`
 }
+
+// AnalyzeAcceptedResponse is returned from POST analyze when the job is enqueued (202).
+type AnalyzeAcceptedResponse struct {
+	JobID string `json:"jobId"`
+}
+
+// JobStatusResponse is returned from GET job status while polling.
+type JobStatusResponse struct {
+	Status string            `json:"status"`
+	Result *AnalyzeResponse  `json:"result,omitempty"`
+	Error  *JobStatusError   `json:"error,omitempty"`
+}
+
+// JobStatusError is a failed job outcome for the UI (no raw upstream details).
+type JobStatusError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}

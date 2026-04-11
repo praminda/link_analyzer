@@ -23,9 +23,8 @@ type Record struct {
 	ErrorMessage string
 }
 
-// Store is a sqlite backed registry of job status and outcomes.
-type Store struct {
-}
+// Store is a placeholder: methods are no-ops and Get always misses until a SQL-backed implementation exists.
+type Store struct{}
 
 // NewStore returns a new job store.
 func NewStore() *Store {

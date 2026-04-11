@@ -11,6 +11,13 @@ import (
 // ipLookup resolves a hostname to IP addresses.
 type ipLookup func(ctx context.Context, host string) ([]net.IPAddr, error)
 
+// ValidateAnalyzeURL checks that rawURL is an absolute http(s) URL and that the host
+// does not resolve to disallowed addresses (same SSRF-related rules as [AnalyzeJob.Process]).
+func ValidateAnalyzeURL(ctx context.Context, rawURL string) error {
+	_, err := parseAndValidateURL(ctx, rawURL, nil)
+	return err
+}
+
 func parseAndValidateURL(ctx context.Context, rawURL string, lookup ipLookup) (*url.URL, error) {
 	if strings.TrimSpace(rawURL) == "" {
 		return nil, fmt.Errorf("%w: empty", ErrInvalidURL)

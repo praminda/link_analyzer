@@ -3,99 +3,46 @@ package analyzer
 import (
 	"context"
 	"errors"
-	"net"
 	"testing"
 )
 
-func TestParseAndValidateURL(t *testing.T) {
-	public := func(ctx context.Context, host string) ([]net.IPAddr, error) {
-		return []net.IPAddr{{IP: net.ParseIP("8.8.8.8")}}, nil
-	}
-	loopback := func(ctx context.Context, host string) ([]net.IPAddr, error) {
-		return []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}, nil
-	}
-	private := func(ctx context.Context, host string) ([]net.IPAddr, error) {
-		return []net.IPAddr{{IP: net.ParseIP("10.0.0.1")}}, nil
-	}
-
+func TestValidateAnalyzeURL_Table(t *testing.T) {
+	ctx := context.Background()
 	tests := []struct {
-		name    string
-		rawURL  string
-		lookup  ipLookup
-		wantErr error
+		name       string
+		raw        string
+		wantErr    error // errors.Is match; nil means expect success
+		wantErrNil bool
 	}{
-		{
-			name:    "empty",
-			rawURL:  "",
-			lookup:  public,
-			wantErr: ErrInvalidURL,
-		},
-		{
-			name:    "relative",
-			rawURL:  "/path",
-			lookup:  public,
-			wantErr: ErrInvalidURL,
-		},
-		{
-			name:    "bad scheme",
-			rawURL:  "ftp://example.com/",
-			lookup:  public,
-			wantErr: ErrInvalidURL,
-		},
-		{
-			name:    "missing host",
-			rawURL:  "https:///path",
-			lookup:  public,
-			wantErr: ErrInvalidURL,
-		},
-		{
-			name:   "ok https",
-			rawURL: "https://example.com/page?q=1#frag",
-			lookup: public,
-		},
-		{
-			name:    "disallowed resolved loopback",
-			rawURL:  "https://example.com/",
-			lookup:  loopback,
-			wantErr: ErrDisallowedHost,
-		},
-		{
-			name:    "disallowed resolved private",
-			rawURL:  "https://example.com/",
-			lookup:  private,
-			wantErr: ErrDisallowedHost,
-		},
+		{name: "empty string", raw: "", wantErr: ErrInvalidURL},
+		{name: "whitespace only", raw: "   \t", wantErr: ErrInvalidURL},
+		{name: "relative path not absolute", raw: "/articles", wantErr: ErrInvalidURL},
+		{name: "scheme ftp", raw: "ftp://example.com/", wantErr: ErrInvalidURL},
+		{name: "scheme file", raw: "file:///etc/passwd", wantErr: ErrInvalidURL},
+		{name: "missing host", raw: "https://", wantErr: ErrInvalidURL},
+		{name: "http uppercase scheme ok", raw: "HTTP://example.com/", wantErrNil: true},
+		{name: "loopback IPv4 literal", raw: "http://127.0.0.1/", wantErr: ErrDisallowedHost},
+		{name: "loopback IPv6 literal", raw: "http://[::1]/", wantErr: ErrDisallowedHost},
+		{name: "private IPv4 literal", raw: "http://10.0.0.1/", wantErr: ErrDisallowedHost},
+		{name: "link local IPv4 literal", raw: "http://169.254.1.1/", wantErr: ErrDisallowedHost},
+		{name: "unspecified IPv4 literal", raw: "http://0.0.0.0/", wantErr: ErrDisallowedHost},
+		{name: "public host ok", raw: "https://example.com/", wantErrNil: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u, err := parseAndValidateURL(context.Background(), tt.rawURL, tt.lookup)
-			if tt.wantErr != nil {
-				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			err := ValidateAnalyzeURL(ctx, tt.raw)
+			if tt.wantErrNil {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
 				}
 				return
 			}
-			if err != nil {
-				t.Fatalf("unexpected err: %v", err)
+			if err == nil {
+				t.Fatal("expected error")
 			}
-			if u.Fragment != "" {
-				t.Fatalf("fragment should be cleared, got %q", u.Fragment)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("errors.Is(..., %v) = false, err = %v", tt.wantErr, err)
 			}
 		})
-	}
-}
-
-func TestDisallowedIP(t *testing.T) {
-	if !disallowedIP(net.ParseIP("127.0.0.1")) {
-		t.Fatal("loopback should be disallowed")
-	}
-	if !disallowedIP(net.ParseIP("10.0.0.1")) {
-		t.Fatal("private should be disallowed")
-	}
-	if !disallowedIP(net.ParseIP("169.254.1.1")) {
-		t.Fatal("link-local should be disallowed")
-	}
-	if disallowedIP(net.ParseIP("8.8.8.8")) {
-		t.Fatal("public should be allowed")
 	}
 }

@@ -7,16 +7,16 @@ import (
 )
 
 // NewRouter creates a new HTTP router for the application.
-// It handles both API and web routes.
-//
-// Returns:
-//   - http.Handler: The HTTP router.
-func NewRouter() http.Handler {
+// It handles both API and web routes. srv must not be nil.
+func NewRouter(srv *Server) http.Handler {
+	if srv == nil {
+		panic("http.NewRouter: nil Server")
+	}
 	rootMux := http.NewServeMux()
 	apiMux := http.NewServeMux()
 
 	// API routes
-	apiMux.HandleFunc("POST /api/v1/links/analyze", AnalyzeHandler)
+	apiMux.HandleFunc("POST /api/v1/links/analyze", srv.handleAnalyze)
 	rootMux.Handle("/api/", apiMux)
 
 	// Web routes

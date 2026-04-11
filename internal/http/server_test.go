@@ -7,14 +7,45 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/praminda/link_analyzer/internal/jobs"
+	"github.com/saravanasai/goqueue"
+	"github.com/saravanasai/goqueue/config"
 )
+
+func newTestServer(t *testing.T) *Server {
+	t.Helper()
+	cfg := config.NewInMemoryConfig().
+		WithMaxRetryAttempts(1).
+		WithMaxWorkers(2).
+		WithConcurrencyLimit(2)
+	qName := strings.ReplaceAll(t.Name(), "/", "-")
+	q, err := goqueue.NewQueue(qName, cfg, 200*time.Millisecond)
+	if err != nil {
+		t.Fatalf("queue: %v", err)
+	}
+	if err := q.StartWorkers(context.Background(), 1); err != nil {
+		t.Fatalf("workers: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = q.Shutdown(ctx)
+	})
+	return &Server{Queue: q, Jobs: jobs.NewStore()}
+}
+
+func testAPIHandler(t *testing.T) http.Handler {
+	return WithRequestLogging(NewRouter(newTestServer(t)))
+}
 
 func TestAnalyzeHandler_InvalidJSONReturnsStructuredError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/links/analyze", strings.NewReader(`not json`))
 	req = req.WithContext(context.WithValue(req.Context(), requestIDContextKey, "test-request-id"))
 	rec := httptest.NewRecorder()
 
-	AnalyzeHandler(rec, req)
+	testAPIHandler(t).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d", rec.Code)
@@ -27,7 +58,7 @@ func TestAnalyzeHandler_EmptyURLReturnsStructuredError(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), requestIDContextKey, "test-request-id"))
 	rec := httptest.NewRecorder()
 
-	AnalyzeHandler(rec, req)
+	testAPIHandler(t).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d", rec.Code)
@@ -40,12 +71,25 @@ func TestAnalyzeHandler_InvalidURLReturnsStructuredError(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), requestIDContextKey, "test-request-id"))
 	rec := httptest.NewRecorder()
 
-	AnalyzeHandler(rec, req)
+	testAPIHandler(t).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	assertErrorEnvelope(t, rec.Body.Bytes(), "url_validation_failed")
+}
+
+func TestJobStatusHandler_NotFound(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs/does-not-exist", nil)
+	req = req.WithContext(context.WithValue(req.Context(), requestIDContextKey, "test-request-id"))
+	rec := httptest.NewRecorder()
+
+	testAPIHandler(t).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	assertErrorEnvelope(t, rec.Body.Bytes(), "job_not_found")
 }
 
 func assertErrorEnvelope(t *testing.T, body []byte, wantCode string) {
