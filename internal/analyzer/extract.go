@@ -2,14 +2,16 @@ package analyzer
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
-func extractStructured(rawHTML []byte, baseURL *url.URL) (AnalyzeResponse, []string, error) {
+func extractStructured(ctx context.Context, log *slog.Logger, rawHTML []byte, baseURL *url.URL) (AnalyzeResponse, []string, error) {
 	doc, err := html.Parse(bytes.NewReader(rawHTML))
 	if err != nil {
 		return AnalyzeResponse{}, nil, fmt.Errorf("parse html: %w", err)
@@ -17,7 +19,15 @@ func extractStructured(rawHTML []byte, baseURL *url.URL) (AnalyzeResponse, []str
 
 	collector := newExtractor(baseURL)
 	collector.walk(doc)
-	return collector.toResponse(), collector.links, nil
+	out := collector.toResponse()
+	if log != nil {
+		log.InfoContext(ctx, "html extracted",
+			"link_count", len(collector.links),
+			"is_login_page", out.IsLoginPage,
+			"html_version", out.HTMLVersion,
+		)
+	}
+	return out, collector.links, nil
 }
 
 type extractor struct {

@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -20,7 +21,7 @@ type linkMetrics struct {
 	inaccessible int
 }
 
-func generateLinkMetrics(ctx context.Context, client *http.Client, lookup ipLookup, baseURL *url.URL, links []string) (linkMetrics, error) {
+func generateLinkMetrics(ctx context.Context, log *slog.Logger, client *http.Client, lookup ipLookup, baseURL *url.URL, links []string) (linkMetrics, error) {
 	if client == nil {
 		return linkMetrics{}, fmt.Errorf("link metrics: %w", ErrNilHTTPClient)
 	}
@@ -29,6 +30,10 @@ func generateLinkMetrics(ctx context.Context, client *http.Client, lookup ipLook
 	}
 	if len(links) == 0 {
 		return linkMetrics{}, nil
+	}
+
+	if log != nil {
+		log.DebugContext(ctx, "link metrics started", "link_count", len(links))
 	}
 
 	metrics := linkMetrics{}
@@ -66,6 +71,14 @@ func generateLinkMetrics(ctx context.Context, client *http.Client, lookup ipLook
 		})
 	}
 	wg.Wait()
+
+	if log != nil {
+		log.InfoContext(ctx, "link metrics completed",
+			"internal_links", metrics.internal,
+			"external_links", metrics.external,
+			"inaccessible_links", metrics.inaccessible,
+		)
+	}
 	return metrics, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 )
@@ -13,6 +14,12 @@ import (
 // later parsing steps.
 type AnalyzeJob struct {
 	URL string
+
+	// JobID identifies this analysis run
+	JobID string
+
+	// Log is optional (nil = no structured logs from extract/metrics).
+	Log *slog.Logger `json:"-"`
 
 	// lookup and httpClient are optional overrides (e.g. tests). When nil,
 	// the default resolver and a hardened fetch client are used.
@@ -77,7 +84,7 @@ func (job *AnalyzeJob) Process(ctx context.Context) error {
 	}
 	job.rawHTML = body
 
-	out, links, err := extractStructured(body, url)
+	out, links, err := extractStructured(ctx, job.Log, body, url)
 	if err != nil {
 		return &AnalyzeError{
 			HTTPStatus: http.StatusUnprocessableEntity,
@@ -85,7 +92,7 @@ func (job *AnalyzeJob) Process(ctx context.Context) error {
 			Message:    "failed to extract HTML fields",
 		}
 	}
-	metrics, err := generateLinkMetrics(ctx, client, lookup, url, links)
+	metrics, err := generateLinkMetrics(ctx, job.Log, client, lookup, url, links)
 	if err != nil {
 		return mapAnalyzeError("link_metrics_failed", err)
 	}

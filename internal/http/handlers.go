@@ -19,7 +19,8 @@ type errorPayload struct {
 }
 
 func AnalyzeHandler(httpRes stdhttp.ResponseWriter, httpReq *stdhttp.Request) {
-	logger := slog.With("request_id", httpReq.Context().Value(requestIDContextKey).(string))
+	reqID, _ := httpReq.Context().Value(requestIDContextKey).(string)
+	logger := slog.With("request_id", reqID)
 
 	var req AnalyzeRequest
 	if err := json.NewDecoder(httpReq.Body).Decode(&req); err != nil {
@@ -34,7 +35,15 @@ func AnalyzeHandler(httpRes stdhttp.ResponseWriter, httpReq *stdhttp.Request) {
 	}
 	logger.Info("Starting analysis", "url", req.URL)
 
-	job := &analyzer.AnalyzeJob{URL: req.URL}
+	// One analysis job per HTTP request for now. JobID doubles as the request
+	// correlation id. If single request can submit multiple urls at a time, then JobID
+	// should be generated per job while request_id stays on the logger for tracing.
+	jobLog := logger.With("job_id", reqID)
+	job := &analyzer.AnalyzeJob{
+		URL:   req.URL,
+		JobID: reqID,
+		Log:   jobLog,
+	}
 	if err := job.Process(httpReq.Context()); err != nil {
 		logger.Error("Analysis failed", "url", req.URL, "error", err)
 		writeAnalyzeError(httpRes, err)

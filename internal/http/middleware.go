@@ -50,7 +50,7 @@ func WithRequestLogging(next stdhttp.Handler) stdhttp.Handler {
 
 		next.ServeHTTP(rec, r)
 
-		slog.Info("http_request",
+		slog.Debug("http_request",
 			"request_id", requestID,
 			"method", r.Method,
 			"path", r.URL.Path,

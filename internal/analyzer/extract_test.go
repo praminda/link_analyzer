@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"context"
 	"net/url"
 	"testing"
 )
@@ -26,7 +27,7 @@ func TestExtractStructured(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, links, err := extractStructured([]byte(htmlDoc), base)
+	out, links, err := extractStructured(context.Background(), nil, []byte(htmlDoc), base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +54,7 @@ func TestExtractStructured(t *testing.T) {
 
 func TestDetectHTMLVersion_NoDoctype(t *testing.T) {
 	base, _ := url.Parse("https://example.com")
-	out, _, err := extractStructured([]byte("<html><head><title>T</title></head><body></body></html>"), base)
+	out, _, err := extractStructured(context.Background(), nil, []byte("<html><head><title>T</title></head><body></body></html>"), base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +72,7 @@ func TestExtractStructured_LoginDetection_AnyCredentialField(t *testing.T) {
   <input type="password" name="password" />
 </form>
 </body></html>`
-	out, _, err := extractStructured([]byte(loginHTML), base)
+	out, _, err := extractStructured(context.Background(), nil, []byte(loginHTML), base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +85,7 @@ func TestExtractStructured_LoginDetection_AnyCredentialField(t *testing.T) {
   <input type="password" name="password" />
 </form>
 </body></html>`
-	out, _, err = extractStructured([]byte(passwordOnlyHTML), base)
+	out, _, err = extractStructured(context.Background(), nil, []byte(passwordOnlyHTML), base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +98,7 @@ func TestExtractStructured_LoginDetection_AnyCredentialField(t *testing.T) {
   <input type="hidden" name="csrf" />
 </form>
 </body></html>`
-	out, _, err = extractStructured([]byte(noCredentialsHTML), base)
+	out, _, err = extractStructured(context.Background(), nil, []byte(noCredentialsHTML), base)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -40,7 +40,7 @@ func TestAnalyzeLinkMetrics_HeadFallbackToGet(t *testing.T) {
 	base, _ := url.Parse("https://example.com/page")
 	links := []string{"https://other.com/fallback"}
 
-	got, err := generateLinkMetrics(context.Background(), client, lookup, base, links)
+	got, err := generateLinkMetrics(context.Background(), nil, client, lookup, base, links)
 	if err != nil {
 		t.Fatal(err)
 	}
