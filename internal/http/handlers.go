@@ -22,9 +22,14 @@ func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	logger := slog.With("request_id", r.Context().Value(requestIDContextKey).(string))
 
 	var req AnalyzeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.URL == "" {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Warn("Invalid analyze request body", "error", err)
-		stdhttp.Error(w, "Invalid json body", stdhttp.StatusBadRequest)
+		writeAPIError(w, stdhttp.StatusBadRequest, "invalid_json_body", "request body must be valid JSON")
+		return
+	}
+	if req.URL == "" {
+		logger.Warn("Invalid analyze request body", "error", "empty url")
+		writeAPIError(w, stdhttp.StatusBadRequest, "url_required", "url is required")
 		return
 	}
 	logger.Info("Starting analysis", "url", req.URL)
@@ -59,20 +64,22 @@ func AnalyzeHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	}
 }
 
+func writeAPIError(w stdhttp.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(errorEnvelope{Error: errorPayload{Code: code, Message: message}})
+}
+
 func writeAnalyzeError(w stdhttp.ResponseWriter, err error) {
 	status := stdhttp.StatusInternalServerError
-	payload := errorPayload{
-		Code:    "analysis_failed",
-		Message: "failed to analyze URL",
-	}
+	code := "analysis_failed"
+	message := "failed to analyze URL"
 
 	if analyzeErr, ok := errors.AsType[*analyzer.AnalyzeError](err); ok {
 		status = analyzeErr.HTTPStatus
-		payload.Code = analyzeErr.Code
-		payload.Message = analyzeErr.Message
+		code = analyzeErr.Code
+		message = analyzeErr.Message
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(errorEnvelope{Error: payload})
+	writeAPIError(w, status, code, message)
 }
