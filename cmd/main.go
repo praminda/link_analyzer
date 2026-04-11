@@ -6,6 +6,7 @@ import (
 	"os"
 
 	apphttp "github.com/praminda/link_analyzer/internal/http"
+	_ "github.com/praminda/link_analyzer/internal/jobs" // RegisterJob side effect for goqueue
 	"github.com/praminda/link_analyzer/internal/logging"
 )
 

@@ -21,6 +21,9 @@ type AnalyzeJob struct {
 	// Log is optional (nil = no structured logs from extract/metrics).
 	Log *slog.Logger `json:"-"`
 
+	// Notifier is optional hooks for queue / persistence (not serialized).
+	Notifier JobRunNotifier `json:"-"`
+
 	// lookup and httpClient are optional overrides (e.g. tests). When nil,
 	// the default resolver and a hardened fetch client are used.
 	lookup     ipLookup
@@ -58,13 +61,32 @@ func (job *AnalyzeJob) ResolvedLinks() []string {
 	return job.resolvedLinks
 }
 
-func (job *AnalyzeJob) Process(ctx context.Context) error {
+func (job *AnalyzeJob) Process(ctx context.Context) (err error) {
 	if job == nil {
 		return &AnalyzeError{
 			HTTPStatus: http.StatusInternalServerError,
 			Code:       "internal_job_error",
 			Message:    "analyzer job is nil",
 		}
+	}
+	if notifier := job.Notifier; notifier != nil {
+		notifier.OnRunStarted(job.JobID)
+		defer func() {
+			if err != nil {
+				if ae, ok := errors.AsType[*AnalyzeError](err); ok {
+					notifier.OnRunFailed(job.JobID, ae)
+					return
+				}
+				notifier.OnRunFailed(job.JobID, &AnalyzeError{
+					HTTPStatus: http.StatusInternalServerError,
+					Code:       "analysis_failed",
+					Message:    err.Error(),
+					Cause:      err,
+				})
+				return
+			}
+			notifier.OnRunSucceeded(job.JobID, job.Response())
+		}()
 	}
 	lookup := job.lookup
 	if lookup == nil {
