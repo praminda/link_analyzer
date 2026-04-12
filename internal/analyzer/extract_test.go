@@ -52,6 +52,35 @@ func TestExtractStructured(t *testing.T) {
 	}
 }
 
+func TestExtractStructured_PreservesDuplicateHrefs(t *testing.T) {
+	htmlDoc := `<!DOCTYPE html><html><head><title>T</title></head><body>
+<a href="/same">A</a>
+<a href="/same">B</a>
+<a href="/same">C</a>
+</body></html>`
+	base, err := url.Parse("https://example.com/page")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, links, err := extractStructured(context.Background(), nil, []byte(htmlDoc), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"https://example.com/same",
+		"https://example.com/same",
+		"https://example.com/same",
+	}
+	if len(links) != len(want) {
+		t.Fatalf("links len = %d want %d, links=%v", len(links), len(want), links)
+	}
+	for i, w := range want {
+		if links[i] != w {
+			t.Fatalf("links[%d] = %q want %q", i, links[i], w)
+		}
+	}
+}
+
 func TestDetectHTMLVersion_NoDoctype(t *testing.T) {
 	base, _ := url.Parse("https://example.com")
 	out, _, err := extractStructured(context.Background(), nil, []byte("<html><head><title>T</title></head><body></body></html>"), base)

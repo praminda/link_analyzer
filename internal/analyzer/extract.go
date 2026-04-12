@@ -39,14 +39,12 @@ type extractor struct {
 	isLoginPage bool
 
 	links []string
-	seen  map[string]struct{}
 }
 
 func newExtractor(baseURL *url.URL) *extractor {
 	return &extractor{
 		baseURL:     baseURL,
 		htmlVersion: "Unknown",
-		seen:        make(map[string]struct{}),
 	}
 }
 
@@ -130,10 +128,6 @@ func (ext *extractor) captureLink(name string, node *html.Node) {
 	if abs == "" {
 		return
 	}
-	if _, ok := ext.seen[abs]; ok {
-		return
-	}
-	ext.seen[abs] = struct{}{}
 	ext.links = append(ext.links, abs)
 }
 

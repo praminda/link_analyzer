@@ -37,18 +37,27 @@ func generateLinkMetrics(ctx context.Context, log *slog.Logger, client *http.Cli
 	}
 
 	metrics := linkMetrics{}
+	unique := make([]string, 0, len(links))
+	seen := make(map[string]struct{}, len(links))
 	for _, link := range links {
 		if isInternalLink(baseURL, link) {
 			metrics.internal++
 		} else {
 			metrics.external++
 		}
+		if _, dup := seen[link]; dup {
+			continue
+		}
+		seen[link] = struct{}{}
+		unique = append(unique, link)
 	}
 
 	sem := make(chan struct{}, defaultLinkCheckConcurrency)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	for _, link := range links {
+	accessibleByURL := make(map[string]bool, len(unique))
+
+	for _, link := range unique {
 		wg.Go(func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
@@ -57,20 +66,25 @@ func generateLinkMetrics(ctx context.Context, log *slog.Logger, client *http.Cli
 			u, err := parseAndValidateURL(ctx, link, lookup)
 			if err != nil {
 				mu.Lock()
-				metrics.inaccessible++
+				accessibleByURL[link] = false
 				mu.Unlock()
 				return
 			}
 
 			accessible, _ := probeLink(ctx, client, u.String())
-			if !accessible {
-				mu.Lock()
-				metrics.inaccessible++
-				mu.Unlock()
-			}
+			mu.Lock()
+			accessibleByURL[link] = accessible
+			mu.Unlock()
 		})
 	}
 	wg.Wait()
+
+	// Second pass: each anchor inherits its URL's probe result (duplicates share one probe).
+	for _, link := range links {
+		if ok, exists := accessibleByURL[link]; !exists || !ok {
+			metrics.inaccessible++
+		}
+	}
 
 	if log != nil {
 		log.InfoContext(ctx, "link metrics completed",
