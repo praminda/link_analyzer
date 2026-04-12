@@ -1,10 +1,12 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	stdhttp "net/http"
+	"sync"
 
 	"github.com/praminda/link_analyzer/internal/analyzer"
 	"github.com/praminda/link_analyzer/internal/jobs"
@@ -24,6 +26,30 @@ type errorPayload struct {
 type Server struct {
 	Queue *queue.Queue
 	Jobs  *jobs.Store
+
+	// WorkerCount is the number of goqueue worker goroutines. Workers are started
+	// lazily on the first successful analyze enqueue to avoid an issue with goqueue's memory store.
+	WorkerCount int
+
+	workerMu       sync.Mutex
+	workersStarted bool
+}
+
+func (s *Server) ensureWorkersStarted() error {
+	s.workerMu.Lock()
+	defer s.workerMu.Unlock()
+	if s.workersStarted {
+		return nil
+	}
+	if s.Queue == nil {
+		return errors.New("job queue is not configured")
+	}
+	n := max(s.WorkerCount, 1)
+	if err := s.Queue.StartWorkers(context.Background(), n); err != nil {
+		return err
+	}
+	s.workersStarted = true
+	return nil
 }
 
 func (s *Server) handleAnalyze(httpRes stdhttp.ResponseWriter, httpReq *stdhttp.Request) {
@@ -70,6 +96,12 @@ func (s *Server) handleAnalyze(httpRes stdhttp.ResponseWriter, httpReq *stdhttp.
 			Message:    "failed to enqueue analysis job",
 		})
 		writeAPIError(httpRes, stdhttp.StatusInternalServerError, "enqueue_failed", "failed to enqueue analysis job")
+		return
+	}
+
+	if err := s.ensureWorkersStarted(); err != nil {
+		logger.Error("Failed to start job workers", "error", err)
+		writeAPIError(httpRes, stdhttp.StatusInternalServerError, "workers_unavailable", "failed to start background workers")
 		return
 	}
 

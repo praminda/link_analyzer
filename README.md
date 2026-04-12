@@ -45,6 +45,7 @@ Environment (optional):
 
 - `APP_ENV=production` — JSON logs to stdout
 - `LOG_LEVEL` — `debug`, `info`, `warn`, or `error`
+- `JOB_DB_PATH` — SQLite file for job status and results (default: `data/jobs.sqlite` under the process working directory)
 
 Tests:
 
@@ -62,6 +63,10 @@ go test ./...
 
 **Logging:** Requests under `/api` are logged with method, path, status, duration, and an `X-Request-Id` for correlation.
 **Safety:** URLs are validated (scheme, host, etc.) and resolved IPs are checked to reduce SSRF-style abuse (e.g. blocking private/loopback targets) before any fetch.
+
+### Job queue: lazy worker startup
+
+GoQueue workers are not started at process boot. They start on the first successful `POST /api/v1/links/analyze`, immediately before the job is enqueued. With the in-memory driver, the backing store only creates the named queue on the first `Dispatch`; if workers called `Pop` before any job existed, goqueue would log queue not found at startup.
 
 ## Architecture
 
@@ -129,6 +134,8 @@ OpenAPI are not published yet
 
 ## Later
 
+- **Eager worker pool at boot** — if goqueue’s in-memory driver ever initializes the queue bucket on first `Pop` (or equivalent), workers could be started in `main` again without startup log noise or tying worker lifecycle to the first HTTP enqueue.
+- **Graceful queue shutdown** — call `Queue.Shutdown` on `SIGINT`/`SIGTERM` so in-flight jobs finish cleanly before exit.
 - Auth and rate limits when the service is exposed for large public user base
 - CI: fmt, vet, tests, container build
 - Metrics (e.g. Prometheus)

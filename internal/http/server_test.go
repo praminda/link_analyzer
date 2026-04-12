@@ -26,9 +26,6 @@ func newTestServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatalf("queue: %v", err)
 	}
-	if err := q.StartWorkers(context.Background(), 1); err != nil {
-		t.Fatalf("workers: %v", err)
-	}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -40,7 +37,7 @@ func newTestServer(t *testing.T) *Server {
 		t.Fatalf("jobs store: %v", err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
-	return &Server{Queue: q, Jobs: st}
+	return &Server{Queue: q, Jobs: st, WorkerCount: 1}
 }
 
 func testAPIHandler(t *testing.T) http.Handler {

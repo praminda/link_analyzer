@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"os"
@@ -44,12 +43,12 @@ func main() {
 		os.Exit(1)
 	}
 	workerCount := min(2, cfg.MaxWorkers)
-	if err := q.StartWorkers(context.Background(), workerCount); err != nil {
-		logger.Error("Failed to start queue workers", "error", err)
-		os.Exit(1)
-	}
 
-	srv := &apphttp.Server{Queue: q, Jobs: jobStore}
+	srv := &apphttp.Server{
+		Queue:       q,
+		Jobs:        jobStore,
+		WorkerCount: workerCount,
+	}
 	mux := apphttp.WithRequestLogging(apphttp.NewRouter(srv))
 	addr := ":8080"
 	logger.Info("Server starting", "addr", addr)
