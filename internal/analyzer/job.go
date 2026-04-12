@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+
+	"github.com/praminda/link_analyzer/internal/appconfig"
 )
 
 // AnalyzeJob runs link analysis for a single URL. Use one instance per request
@@ -23,6 +25,9 @@ type AnalyzeJob struct {
 
 	// Notifier is optional hooks for queue / persistence (not serialized).
 	Notifier JobRunNotifier `json:"-"`
+
+	// Analyzer holds optional fetch overrides (see [appconfig.ResolveFetch]).
+	Analyzer *appconfig.AnalyzerConfig `json:"analyzer,omitempty"`
 
 	// lookup and httpClient are optional overrides (e.g. tests). When nil,
 	// the default resolver and a hardened fetch client are used.
@@ -96,11 +101,12 @@ func (job *AnalyzeJob) Process(ctx context.Context) (err error) {
 	if err != nil {
 		return mapAnalyzeError("url_validation_failed", err)
 	}
+	limits := appconfig.ResolveFetch(job.Analyzer)
 	client := job.httpClient
 	if client == nil {
-		client = newFetchHTTPClient(lookup)
+		client = newFetchHTTPClient(lookup, limits.MaxRedirects, limits.Timeout)
 	}
-	body, err := fetchHTML(ctx, client, url, defaultMaxBodyBytes)
+	body, err := fetchHTML(ctx, client, url, limits.MaxBodyBytes, limits.UserAgent)
 	if err != nil {
 		return mapAnalyzeError("fetch_failed", err)
 	}

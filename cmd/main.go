@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	appcfg "github.com/praminda/link_analyzer/internal/appconfig"
 	apphttp "github.com/praminda/link_analyzer/internal/http"
 	"github.com/praminda/link_analyzer/internal/jobs"
 	"github.com/praminda/link_analyzer/internal/logging"
@@ -14,13 +15,16 @@ import (
 )
 
 func main() {
-	logger := logging.New()
+	cfg, err := appcfg.Load()
+	if err != nil {
+		slog.Error("Invalid configuration", "error", err)
+		os.Exit(1)
+	}
+
+	logger := logging.New(cfg.Log)
 	slog.SetDefault(logger)
 
-	dbPath := os.Getenv("JOB_DB_PATH")
-	if dbPath == "" {
-		dbPath = filepath.Join("data", "jobs.sqlite")
-	}
+	dbPath := cfg.Jobs.DBPath
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		logger.Error("Failed to create job database directory", "error", err, "dir", filepath.Dir(dbPath))
 		os.Exit(1)
@@ -32,27 +36,25 @@ func main() {
 	}
 	defer jobStore.Close()
 
-	// TODO: Make these values configurable
-	cfg := config.NewInMemoryConfig().
-		WithMaxRetryAttempts(1).
-		WithMaxWorkers(4).
-		WithConcurrencyLimit(8)
-	q, err := goqueue.NewQueueWithDefaults("link-analyze", cfg)
+	gqCfg := config.NewInMemoryConfig().
+		WithMaxRetryAttempts(cfg.Queue.MaxRetryAttempts).
+		WithMaxWorkers(cfg.Queue.MaxWorkers).
+		WithConcurrencyLimit(cfg.Queue.ConcurrencyLimit)
+	q, err := goqueue.NewQueueWithDefaults(cfg.Queue.Name, gqCfg)
 	if err != nil {
 		logger.Error("Failed to create job queue", "error", err)
 		os.Exit(1)
 	}
-	workerCount := min(2, cfg.MaxWorkers)
 
 	srv := &apphttp.Server{
 		Queue:       q,
 		Jobs:        jobStore,
-		WorkerCount: workerCount,
+		WorkerCount: cfg.Queue.WorkerCount,
+		Analyzer:    &cfg.Analyzer,
 	}
 	mux := apphttp.WithRequestLogging(apphttp.NewRouter(srv))
-	addr := ":8080"
-	logger.Info("Server starting", "addr", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	logger.Info("Server starting", "addr", cfg.HTTP.Addr)
+	if err := http.ListenAndServe(cfg.HTTP.Addr, mux); err != nil {
 		logger.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

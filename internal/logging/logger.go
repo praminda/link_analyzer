@@ -4,18 +4,19 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/praminda/link_analyzer/internal/appconfig"
 )
 
-func New() *slog.Logger {
-	level := parseLevel(os.Getenv("LOG_LEVEL"))
-	opts := &slog.HandlerOptions{Level: level}
+// New builds the default application logger from Options.
+func New(opts appconfig.LogConfig) *slog.Logger {
+	level := parseLevel(opts.Level)
+	hOpts := &slog.HandlerOptions{Level: level}
 
-	env := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
-	if env == "production" {
-		return slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	if opts.UseJSON {
+		return slog.New(slog.NewJSONHandler(os.Stdout, hOpts))
 	}
-
-	return slog.New(slog.NewTextHandler(os.Stdout, opts))
+	return slog.New(slog.NewTextHandler(os.Stdout, hOpts))
 }
 
 func parseLevel(raw string) slog.Level {

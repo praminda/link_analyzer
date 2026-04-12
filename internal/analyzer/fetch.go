@@ -10,19 +10,11 @@ import (
 	"time"
 )
 
-const (
-	defaultFetchTimeout = 30 * time.Second
-	// maxRedirectFollows is how many Location hops we allow after the initial GET.
-	maxRedirectFollows  = 5
-	defaultMaxBodyBytes = 2 << 20 // 2 MiB
-	defaultUserAgent    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:145.0) Gecko/20090101 Firefox/145.0"
-)
-
-func newFetchHTTPClient(lookup ipLookup) *http.Client {
+func newFetchHTTPClient(lookup ipLookup, maxRedirects int, fetchTimeout time.Duration) *http.Client {
 	return &http.Client{
-		Timeout: defaultFetchTimeout,
+		Timeout: fetchTimeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) > maxRedirectFollows {
+			if len(via) > maxRedirects {
 				return ErrTooManyRedirects
 			}
 			if _, err := parseAndValidateURL(req.Context(), req.URL.String(), lookup); err != nil {
@@ -33,18 +25,22 @@ func newFetchHTTPClient(lookup ipLookup) *http.Client {
 	}
 }
 
-func fetchHTML(ctx context.Context, client *http.Client, u *url.URL, maxBody int64) ([]byte, error) {
+func fetchHTML(ctx context.Context, client *http.Client, u *url.URL, maxBody int64, userAgent string) ([]byte, error) {
 	if client == nil {
 		return nil, fmt.Errorf("fetch: %w", ErrNilHTTPClient)
 	}
 	if maxBody <= 0 {
-		maxBody = defaultMaxBodyBytes
+		// production invocation path should not reach here
+		return nil, fmt.Errorf("fetch: maxBody must be > 0")
+	}
+	if strings.TrimSpace(userAgent) == "" {
+		return nil, fmt.Errorf("fetch: userAgent must be non-empty")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("fetch: build request: %w", err)
 	}
-	req.Header.Set("User-Agent", defaultUserAgent)
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {

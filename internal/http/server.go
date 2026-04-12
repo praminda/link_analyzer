@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/praminda/link_analyzer/internal/analyzer"
+	"github.com/praminda/link_analyzer/internal/appconfig"
 	"github.com/praminda/link_analyzer/internal/jobs"
 	"github.com/saravanasai/goqueue/queue"
 )
@@ -26,6 +27,9 @@ type errorPayload struct {
 type Server struct {
 	Queue *queue.Queue
 	Jobs  *jobs.Store
+
+	// Analyzer holds the analyzer configurations.
+	Analyzer *appconfig.AnalyzerConfig
 
 	// WorkerCount is the number of goqueue worker goroutines. Workers are started
 	// lazily on the first successful analyze enqueue to avoid an issue with goqueue's memory store.
@@ -88,6 +92,7 @@ func (s *Server) handleAnalyze(httpRes stdhttp.ResponseWriter, httpReq *stdhttp.
 		Log:      jobLog,
 		Notifier: jobs.NewStoreNotifier(s.Jobs),
 	}
+	job.Analyzer = s.Analyzer
 	if err := s.Queue.Dispatch(job); err != nil {
 		logger.Error("Failed to dispatch job", "error", err)
 		s.Jobs.SetFailed(jobID, &analyzer.AnalyzeError{

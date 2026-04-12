@@ -39,13 +39,27 @@ docker build -f build/package/Dockerfile -t link-analyzer:latest .
 docker run --rm -p 8080:8080 link-analyzer:latest
 ```
 
-Then open `http://localhost:8080`. The process listens on port **8080**.
+Then open `http://localhost:8080` (or the configured host/port using `HTTP_ADDR`).
 
-### Environment (optional):
+### Environment (optional)
 
-- `APP_ENV=production` — JSON logs to stdout
-- `LOG_LEVEL` — `debug`, `info`, `warn`, or `error`
-- `JOB_DB_PATH` — SQLite file for job status and results (default: `data/jobs.sqlite` under the process working directory)
+Configuration is read at startup from environment variables (`internal/appconfig`). Invalid combinations (for example `QUEUE_WORKER_COUNT` greater than `QUEUE_MAX_WORKERS`) cause the process to exit before listening.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `HTTP_ADDR` | `:8080` | TCP listen address for the HTTP server |
+| `JOB_DB_PATH` | `data/jobs.sqlite` | SQLite path for job |
+| `QUEUE_NAME` | `link-analyze` | Logical queue name for jobs |
+| `QUEUE_MAX_RETRY_ATTEMPTS` | `1` | Job retries on failure |
+| `QUEUE_MAX_WORKERS` | `4` | Max concurrent job workers |
+| `QUEUE_CONCURRENCY_LIMIT` | `8` | Max active jobs |
+| `QUEUE_WORKER_COUNT` | `2` | Worker goroutines started lazily after first enqueue; must be ≤ `QUEUE_MAX_WORKERS` |
+| `ANALYZER_MAX_BODY_BYTES` | `2097152` (2 MiB) | Max HTML body read per analyzed URL |
+| `ANALYZER_FETCH_TIMEOUT_SEC` | `30` | HTTP client timeout for the page fetch |
+| `ANALYZER_MAX_REDIRECTS` | `5` | Max redirect hops when following `Location` (must be ≥ 1) |
+| `ANALYZER_USER_AGENT` | (built-in browser-like string) | `User-Agent` header for the page GET |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
+| `APP_ENV` | (unset) | Set to `production` for JSON logs on stdout |
 
 Tests:
 

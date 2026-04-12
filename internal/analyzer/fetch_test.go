@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/praminda/link_analyzer/internal/appconfig"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -18,7 +20,7 @@ func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 
 func TestFetchHTML_nilClient(t *testing.T) {
 	u, _ := url.Parse("https://example.com/")
-	_, err := fetchHTML(context.Background(), nil, u, 1024)
+	_, err := fetchHTML(context.Background(), nil, u, 1024, appconfig.DefaultAnalyzer.UserAgent)
 	if !errors.Is(err, ErrNilHTTPClient) {
 		t.Fatalf("err = %v, want ErrNilHTTPClient", err)
 	}
@@ -35,7 +37,7 @@ func TestFetchHTML_nonOKStatus(t *testing.T) {
 		}),
 	}
 	u, _ := url.Parse("https://example.com/")
-	_, err := fetchHTML(context.Background(), client, u, 1024)
+	_, err := fetchHTML(context.Background(), client, u, 1024, appconfig.DefaultAnalyzer.UserAgent)
 	if !errors.Is(err, ErrFetchStatus) {
 		t.Fatalf("err = %v, want ErrFetchStatus", err)
 	}
@@ -58,7 +60,7 @@ func TestFetchHTML_ok(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, err := fetchHTML(context.Background(), client, u, 1024)
+	body, err := fetchHTML(context.Background(), client, u, 1024, appconfig.DefaultAnalyzer.UserAgent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +80,7 @@ func TestFetchHTML_notHTML(t *testing.T) {
 		}),
 	}
 	u, _ := url.Parse("https://example.com/")
-	_, err := fetchHTML(context.Background(), client, u, 1024)
+	_, err := fetchHTML(context.Background(), client, u, 1024, appconfig.DefaultAnalyzer.UserAgent)
 	if !errors.Is(err, ErrNotHTML) {
 		t.Fatalf("err = %v, want ErrNotHTML", err)
 	}
@@ -95,7 +97,7 @@ func TestFetchHTML_tooLarge(t *testing.T) {
 		}),
 	}
 	u, _ := url.Parse("https://example.com/")
-	_, err := fetchHTML(context.Background(), client, u, 10)
+	_, err := fetchHTML(context.Background(), client, u, 10, appconfig.DefaultAnalyzer.UserAgent)
 	if !errors.Is(err, ErrBodyTooLarge) {
 		t.Fatalf("err = %v, want ErrBodyTooLarge", err)
 	}

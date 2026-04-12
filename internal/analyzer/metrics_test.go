@@ -83,7 +83,7 @@ func TestGenerateLinkMetrics_DedupesProbesForDuplicateURLs(t *testing.T) {
 	}
 }
 
-func TestGenerateLinkMetrics_InaccessibleCountedPerOccurrence(t *testing.T) {
+func TestGenerateLinkMetrics_UniqueInaccessibleCount(t *testing.T) {
 	lookup := func(ctx context.Context, host string) ([]net.IPAddr, error) {
 		return []net.IPAddr{{IP: net.ParseIP("8.8.8.8")}}, nil
 	}
