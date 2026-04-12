@@ -80,6 +80,38 @@ func (s *Server) handleAnalyze(httpRes stdhttp.ResponseWriter, httpReq *stdhttp.
 	}
 }
 
+func (s *Server) handleJobStatus(httpRes stdhttp.ResponseWriter, httpReq *stdhttp.Request) {
+	reqID, _ := httpReq.Context().Value(requestIDContextKey).(string)
+	logger := slog.With("request_id", reqID)
+
+	jobID := httpReq.PathValue("jobId")
+	if jobID == "" {
+		writeAPIError(httpRes, stdhttp.StatusBadRequest, "job_id_required", "job id is required")
+		return
+	}
+
+	rec, ok := s.Jobs.Get(jobID)
+	if !ok {
+		logger.Warn("Job not found", "job_id", jobID)
+		writeAPIError(httpRes, stdhttp.StatusNotFound, "job_not_found", "no job exists for this id")
+		return
+	}
+
+	out := JobStatusResponse{Status: string(rec.Status)}
+	switch rec.Status {
+	case jobs.StatusCompleted:
+		r := analyzerResultToDTO(rec.Result)
+		out.Result = &r
+	case jobs.StatusFailed:
+		out.Error = &JobStatusError{Code: rec.ErrorCode, Message: rec.ErrorMessage}
+	}
+
+	httpRes.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(httpRes).Encode(out); err != nil {
+		logger.Error("Failed to encode job status response", "error", err)
+	}
+}
+
 func analyzerResultToDTO(out analyzer.AnalyzeResponse) AnalyzeResponse {
 	return AnalyzeResponse{
 		HTMLVersion: out.HTMLVersion,

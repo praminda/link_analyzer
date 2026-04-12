@@ -17,6 +17,7 @@ func NewRouter(srv *Server) http.Handler {
 
 	// API routes
 	apiMux.HandleFunc("POST /api/v1/links/analyze", srv.handleAnalyze)
+	apiMux.HandleFunc("GET /api/v1/jobs/{jobId}", srv.handleJobStatus)
 	rootMux.Handle("/api/", apiMux)
 
 	// Web routes
