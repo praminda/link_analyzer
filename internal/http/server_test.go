@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +34,13 @@ func newTestServer(t *testing.T) *Server {
 		defer cancel()
 		_ = q.Shutdown(ctx)
 	})
-	return &Server{Queue: q, Jobs: jobs.NewStore()}
+	dbPath := filepath.Join(t.TempDir(), "jobs.sqlite")
+	st, err := jobs.NewStore(dbPath)
+	if err != nil {
+		t.Fatalf("jobs store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	return &Server{Queue: q, Jobs: st}
 }
 
 func testAPIHandler(t *testing.T) http.Handler {
