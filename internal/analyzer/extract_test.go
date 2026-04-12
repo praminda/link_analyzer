@@ -92,7 +92,7 @@ func TestDetectHTMLVersion_NoDoctype(t *testing.T) {
 	}
 }
 
-func TestExtractStructured_LoginDetection_AnyCredentialField(t *testing.T) {
+func TestExtractStructured_LoginDetection_RequiresUsernameAndPassword(t *testing.T) {
 	base, _ := url.Parse("https://example.com")
 
 	loginHTML := `<html><body>
@@ -106,7 +106,7 @@ func TestExtractStructured_LoginDetection_AnyCredentialField(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !out.IsLoginPage {
-		t.Fatal("expected IsLoginPage=true")
+		t.Fatal("expected IsLoginPage=true when form has username and password")
 	}
 
 	passwordOnlyHTML := `<html><body>
@@ -118,8 +118,21 @@ func TestExtractStructured_LoginDetection_AnyCredentialField(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !out.IsLoginPage {
-		t.Fatal("expected IsLoginPage=true for password-only form")
+	if out.IsLoginPage {
+		t.Fatal("expected IsLoginPage=false for password-only form")
+	}
+
+	usernameOnlyHTML := `<html><body>
+<form>
+  <input type="text" name="username" />
+</form>
+</body></html>`
+	out, _, err = extractStructured(context.Background(), nil, []byte(usernameOnlyHTML), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.IsLoginPage {
+		t.Fatal("expected IsLoginPage=false for username-only form")
 	}
 
 	noCredentialsHTML := `<html><body>

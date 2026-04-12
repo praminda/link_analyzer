@@ -149,16 +149,22 @@ func (ext *extractor) captureLoginForm(name string, n *html.Node) {
 	}
 }
 
-// formHasCredentials checks if a form contains a username or password input.
-// if one of those are available, we consider the form a login form.
+// formHasCredentials reports whether the form has both a username-like field
+// and a password field.
 func formHasCredentials(formNode *html.Node) bool {
+	var hasUsername, hasPassword bool
 	queue := []*html.Node{formNode}
 	for len(queue) > 0 {
 		node := queue[0]
 		queue = queue[1:]
 
 		if node.Type == html.ElementNode && strings.EqualFold(node.Data, "input") {
-			if isPasswordInput(node) || isUsernameLikeInput(node) {
+			if isPasswordInput(node) {
+				hasPassword = true
+			} else if isUsernameLikeInput(node) {
+				hasUsername = true
+			}
+			if hasUsername && hasPassword {
 				return true
 			}
 		}
