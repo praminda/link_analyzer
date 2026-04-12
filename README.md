@@ -41,7 +41,7 @@ docker run --rm -p 8080:8080 link-analyzer:latest
 
 Then open `http://localhost:8080`. The process listens on port **8080**.
 
-Environment (optional):
+### Environment (optional):
 
 - `APP_ENV=production` — JSON logs to stdout
 - `LOG_LEVEL` — `debug`, `info`, `warn`, or `error`
@@ -127,18 +127,18 @@ sequenceDiagram
 
 OpenAPI are not published yet
 
-## Challenges so far
+## Challenges
 
 - **Unsafe targets:** Mitigate SSRF by validating URLs and rejecting disallowed resolved addresses before fetching.
 - **Simple ops story:** Serve the UI as embedded static files so one binary is enough for local and small deployments.
 
 ## Later
 
-- **Eager worker pool at boot** — if goqueue’s in-memory driver ever initializes the queue bucket on first `Pop` (or equivalent), workers could be started in `main` again without startup log noise or tying worker lifecycle to the first HTTP enqueue.
-- **Graceful queue shutdown** — call `Queue.Shutdown` on `SIGINT`/`SIGTERM` so in-flight jobs finish cleanly before exit.
-- Auth and rate limits when the service is exposed for large public user base
+- Eager worker pool at boot — if goqueue’s in-memory driver ever initializes the queue bucket on first `Pop` (or equivalent), workers could be started in `main` again without startup log noise or tying worker lifecycle to the first HTTP enqueue.
+- Graceful queue shutdown — call `Queue.Shutdown` on `SIGINT`/`SIGTERM` so in-flight jobs finish cleanly before exit.
+- Auth and rate limits when the service is exposed for large public user base. Considered as out of spec for this phase
 - CI: fmt, vet, tests, container build
 - Metrics (e.g. Prometheus)
-- Heavier database and/or external queue when SQLite and in-process workers stop being enough
+- Production ready database and/or external queue integration
 - Frontend is embedded into the service in this implementation. We need to separate it out to a different delivery artifact for production. Currently implemented this way for simplicity.
 - Make fetch client properties configurable. Env vars and a separate config file for the service.
