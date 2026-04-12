@@ -120,7 +120,7 @@ func (job *AnalyzeJob) Process(ctx context.Context) (err error) {
 			Message:    "failed to extract HTML fields",
 		}
 	}
-	metrics, err := generateLinkMetrics(ctx, job.Log, client, lookup, url, links)
+	metrics, err := generateLinkMetrics(ctx, job.Log, client, lookup, url, links, limits.LinkCheckWorkers)
 	if err != nil {
 		return mapAnalyzeError("link_metrics_failed", err)
 	}

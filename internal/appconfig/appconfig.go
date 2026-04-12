@@ -44,26 +44,29 @@ type QueueConfig struct {
 
 // AnalyzerConfig controls HTTP fetch behavior for link analysis jobs
 type AnalyzerConfig struct {
-	MaxBodyBytes int64         `json:"max_body_bytes,omitempty"`
-	FetchTimeout time.Duration `json:"fetch_timeout,omitempty"`
-	MaxRedirects int           `json:"max_redirects,omitempty"`
-	UserAgent    string        `json:"user_agent,omitempty"`
+	MaxBodyBytes     int64         `json:"max_body_bytes,omitempty"`
+	FetchTimeout     time.Duration `json:"fetch_timeout,omitempty"`
+	MaxRedirects     int           `json:"max_redirects,omitempty"`
+	UserAgent        string        `json:"user_agent,omitempty"`
+	LinkCheckWorkers int           `json:"link_check_workers,omitempty"`
 }
 
 // DefaultAnalyzer is the baseline when env is unset or when a job has no overrides.
 var DefaultAnalyzer = AnalyzerConfig{
-	MaxBodyBytes: 2 << 20,
-	FetchTimeout: 30 * time.Second,
-	MaxRedirects: 5,
-	UserAgent:    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:145.0) Gecko/20090101 Firefox/145.0",
+	MaxBodyBytes:     2 << 20,
+	FetchTimeout:     30 * time.Second,
+	MaxRedirects:     5,
+	UserAgent:        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:145.0) Gecko/20090101 Firefox/145.0",
+	LinkCheckWorkers: 10,
 }
 
 // FetchLimits is concrete HTTP fetch tuning parameters.
 type FetchLimits struct {
-	Timeout      time.Duration
-	MaxRedirects int
-	MaxBodyBytes int64
-	UserAgent    string
+	Timeout          time.Duration
+	MaxRedirects     int
+	MaxBodyBytes     int64
+	UserAgent        string
+	LinkCheckWorkers int
 }
 
 // ResolveFetch overlays optional job-level *AnalyzerConfig on [DefaultAnalyzer].
@@ -83,12 +86,16 @@ func ResolveFetch(c *AnalyzerConfig) FetchLimits {
 		if ua := strings.TrimSpace(c.UserAgent); ua != "" {
 			cfg.UserAgent = ua
 		}
+		if c.LinkCheckWorkers > 0 {
+			cfg.LinkCheckWorkers = c.LinkCheckWorkers
+		}
 	}
 	return FetchLimits{
-		Timeout:      cfg.FetchTimeout,
-		MaxRedirects: cfg.MaxRedirects,
-		MaxBodyBytes: cfg.MaxBodyBytes,
-		UserAgent:    cfg.UserAgent,
+		Timeout:          cfg.FetchTimeout,
+		MaxRedirects:     cfg.MaxRedirects,
+		MaxBodyBytes:     cfg.MaxBodyBytes,
+		UserAgent:        cfg.UserAgent,
+		LinkCheckWorkers: cfg.LinkCheckWorkers,
 	}
 }
 
@@ -115,10 +122,11 @@ func Load() (*Config, error) {
 			WorkerCount:      getenvInt("QUEUE_WORKER_COUNT", 2),
 		},
 		Analyzer: AnalyzerConfig{
-			MaxBodyBytes: getenvInt64("ANALYZER_MAX_BODY_BYTES", DefaultAnalyzer.MaxBodyBytes),
-			FetchTimeout: time.Duration(getenvInt("ANALYZER_FETCH_TIMEOUT_SEC", int(DefaultAnalyzer.FetchTimeout.Seconds()))) * time.Second,
-			MaxRedirects: getenvInt("ANALYZER_MAX_REDIRECTS", DefaultAnalyzer.MaxRedirects),
-			UserAgent:    getenv("ANALYZER_USER_AGENT", DefaultAnalyzer.UserAgent),
+			MaxBodyBytes:     getenvInt64("ANALYZER_MAX_BODY_BYTES", DefaultAnalyzer.MaxBodyBytes),
+			FetchTimeout:     time.Duration(getenvInt("ANALYZER_FETCH_TIMEOUT_SEC", int(DefaultAnalyzer.FetchTimeout.Seconds()))) * time.Second,
+			MaxRedirects:     getenvInt("ANALYZER_MAX_REDIRECTS", DefaultAnalyzer.MaxRedirects),
+			UserAgent:        getenv("ANALYZER_USER_AGENT", DefaultAnalyzer.UserAgent),
+			LinkCheckWorkers: getenvInt("ANALYZER_LINK_CHECK_WORKERS", DefaultAnalyzer.LinkCheckWorkers),
 		},
 		Log: LogConfig{
 			Level:   getenv("LOG_LEVEL", "info"),
@@ -165,6 +173,12 @@ func (c *Config) validate() error {
 	}
 	if c.Analyzer.MaxRedirects < 1 {
 		return fmt.Errorf("ANALYZER_MAX_REDIRECTS must be >= 1")
+	}
+	if c.Analyzer.LinkCheckWorkers < 1 {
+		return fmt.Errorf("ANALYZER_LINK_CHECK_WORKERS must be >= 1")
+	}
+	if c.Analyzer.LinkCheckWorkers > 256 {
+		return fmt.Errorf("ANALYZER_LINK_CHECK_WORKERS must be <= 256")
 	}
 	return nil
 }

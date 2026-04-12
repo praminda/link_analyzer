@@ -58,6 +58,7 @@ Configuration is read at startup from environment variables (`internal/appconfig
 | `ANALYZER_FETCH_TIMEOUT_SEC` | `30` | HTTP client timeout for the page fetch |
 | `ANALYZER_MAX_REDIRECTS` | `5` | Max redirect hops when following `Location` (must be ≥ 1) |
 | `ANALYZER_USER_AGENT` | (built-in browser-like string) | `User-Agent` header for the page GET |
+| `ANALYZER_LINK_CHECK_WORKERS` | `10` | Goroutine pool for outbound link probes (must be 1–256) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error` |
 | `APP_ENV` | (unset) | Set to `production` for JSON logs on stdout |
 

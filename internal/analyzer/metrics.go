@@ -10,18 +10,14 @@ import (
 	"sync"
 )
 
-const (
-	// TODO: make configurable
-	defaultLinkCheckConcurrency = 10
-)
-
 type linkMetrics struct {
 	internal     int
 	external     int
 	inaccessible int
 }
 
-func generateLinkMetrics(ctx context.Context, log *slog.Logger, client *http.Client, lookup ipLookup, baseURL *url.URL, links []string) (linkMetrics, error) {
+// generateLinkMetrics probes unique outbound links with a fixed worker pool.
+func generateLinkMetrics(ctx context.Context, log *slog.Logger, client *http.Client, lookup ipLookup, baseURL *url.URL, links []string, workerCount int) (linkMetrics, error) {
 	if client == nil {
 		return linkMetrics{}, fmt.Errorf("link metrics: %w", ErrNilHTTPClient)
 	}
@@ -52,34 +48,45 @@ func generateLinkMetrics(ctx context.Context, log *slog.Logger, client *http.Cli
 		unique = append(unique, link)
 	}
 
-	sem := make(chan struct{}, defaultLinkCheckConcurrency)
-	var wg sync.WaitGroup
+	if len(unique) == 0 {
+		return metrics, nil
+	}
+	if workerCount < 1 {
+		workerCount = 1
+	}
+	nWorkers := min(len(unique), workerCount)
+
+	work := make(chan string, len(unique))
+	for _, link := range unique {
+		work <- link
+	}
+	close(work)
+
 	var mu sync.Mutex
 	accessibleByURL := make(map[string]bool, len(unique))
-
-	for _, link := range unique {
+	var wg sync.WaitGroup
+	for range nWorkers {
 		wg.Go(func() {
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			// Validate extracted links before requesting them.
-			u, err := parseAndValidateURL(ctx, link, lookup)
-			if err != nil {
+			for link := range work {
+				if ctx.Err() != nil {
+					return
+				}
+				u, err := parseAndValidateURL(ctx, link, lookup)
+				if err != nil {
+					mu.Lock()
+					accessibleByURL[link] = false
+					mu.Unlock()
+					continue
+				}
+				accessible, _ := probeLink(ctx, client, u.String())
 				mu.Lock()
-				accessibleByURL[link] = false
+				accessibleByURL[link] = accessible
 				mu.Unlock()
-				return
 			}
-
-			accessible, _ := probeLink(ctx, client, u.String())
-			mu.Lock()
-			accessibleByURL[link] = accessible
-			mu.Unlock()
 		})
 	}
 	wg.Wait()
 
-	// Second pass: each anchor inherits its URL's probe result (duplicates share one probe).
 	for _, link := range links {
 		if ok, exists := accessibleByURL[link]; !exists || !ok {
 			metrics.inaccessible++

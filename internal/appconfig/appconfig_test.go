@@ -17,6 +17,7 @@ func TestLoad_EnvOverride(t *testing.T) {
 	t.Setenv("ANALYZER_FETCH_TIMEOUT_SEC", "45")
 	t.Setenv("ANALYZER_MAX_REDIRECTS", "3")
 	t.Setenv("ANALYZER_USER_AGENT", "LinkAnalyzerTest/1.0")
+	t.Setenv("ANALYZER_LINK_CHECK_WORKERS", "7")
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("APP_ENV", "production")
 
@@ -34,10 +35,11 @@ func TestLoad_EnvOverride(t *testing.T) {
 		t.Fatalf("Queue: %+v", cfg.Queue)
 	}
 	want := AnalyzerConfig{
-		MaxBodyBytes: 1048576,
-		FetchTimeout: 45 * time.Second,
-		MaxRedirects: 3,
-		UserAgent:    "LinkAnalyzerTest/1.0",
+		MaxBodyBytes:     1048576,
+		FetchTimeout:     45 * time.Second,
+		MaxRedirects:     3,
+		UserAgent:        "LinkAnalyzerTest/1.0",
+		LinkCheckWorkers: 7,
 	}
 	if cfg.Analyzer != want {
 		t.Fatalf("Analyzer: %+v, want %+v", cfg.Analyzer, want)
@@ -50,10 +52,11 @@ func TestLoad_EnvOverride(t *testing.T) {
 func TestResolveFetch_nilUsesDefaults(t *testing.T) {
 	got := ResolveFetch(nil)
 	want := FetchLimits{
-		Timeout:      DefaultAnalyzer.FetchTimeout,
-		MaxRedirects: DefaultAnalyzer.MaxRedirects,
-		MaxBodyBytes: DefaultAnalyzer.MaxBodyBytes,
-		UserAgent:    DefaultAnalyzer.UserAgent,
+		Timeout:            DefaultAnalyzer.FetchTimeout,
+		MaxRedirects:       DefaultAnalyzer.MaxRedirects,
+		MaxBodyBytes:       DefaultAnalyzer.MaxBodyBytes,
+		UserAgent:          DefaultAnalyzer.UserAgent,
+		LinkCheckWorkers:   DefaultAnalyzer.LinkCheckWorkers,
 	}
 	if got != want {
 		t.Fatalf("ResolveFetch(nil) = %+v, want %+v", got, want)
@@ -78,6 +81,17 @@ func TestResolveFetch_overrideDefault(t *testing.T) {
 	}
 	if got.UserAgent != DefaultAnalyzer.UserAgent {
 		t.Fatalf("UserAgent not defaulted")
+	}
+	if got.LinkCheckWorkers != DefaultAnalyzer.LinkCheckWorkers {
+		t.Fatalf("LinkCheckWorkers = %d, want default %d", got.LinkCheckWorkers, DefaultAnalyzer.LinkCheckWorkers)
+	}
+}
+
+func TestLoad_LinkCheckWorkersAbove256Errors(t *testing.T) {
+	t.Setenv("ANALYZER_LINK_CHECK_WORKERS", "300")
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
 
