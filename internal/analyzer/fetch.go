@@ -41,6 +41,11 @@ func fetchHTML(ctx context.Context, client *http.Client, u *url.URL, maxBody int
 		return nil, fmt.Errorf("fetch: build request: %w", err)
 	}
 	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.Header.Set("Sec-Fetch-User", "?1")
 
 	resp, err := client.Do(req)
 	if err != nil {
