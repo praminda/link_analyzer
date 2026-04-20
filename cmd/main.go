@@ -25,7 +25,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	dbPath := cfg.Jobs.DBPath
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dbPath), os.ModePerm); err != nil {
 		logger.Error("Failed to create job database directory", "error", err, "dir", filepath.Dir(dbPath))
 		os.Exit(1)
 	}
