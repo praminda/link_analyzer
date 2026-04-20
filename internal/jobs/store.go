@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"path/filepath"
 	"time"
 
@@ -47,17 +46,22 @@ func NewStore(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("jobs store path: %w", err)
 	}
-	u := url.URL{
-		Scheme:   "file",
-		Path:     filepath.ToSlash(abs),
-		RawQuery: "mode=rwc&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)",
-	}
-	db, err := sql.Open("sqlite", u.String())
+
+	db, err := sql.Open("sqlite", abs)
 	if err != nil {
 		return nil, fmt.Errorf("jobs store open: %w", err)
 	}
 	db.SetMaxOpenConns(1)
 	db.SetConnMaxLifetime(0)
+
+	// Set DB properties. Windows doesn't like setting pragma properties in the db url
+	if _, err := db.Exec(`
+		PRAGMA journal_mode = WAL;
+		PRAGMA busy_timeout = 5000;
+	`); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("pragma: %w", err)
+	}
 
 	s := &Store{db: db}
 	if err := s.migrate(context.Background()); err != nil {
